@@ -87,12 +87,16 @@
         minY = Math.min(minY, h.y); maxY = Math.max(maxY, h.y);
       }
       const spanX = (maxX - minX) + 2.5, spanY = (maxY - minY) + 2.5;
-      const pad = 60;
-      const sx = (this.W - pad * 2) / spanX, sy = (this.H - pad * 2) / spanY;
+      const pad = this.W < 500 ? 16 : 60;
+      // keep the board clear of the hand of cards at the bottom
+      const hud = document.getElementById('hud');
+      const bottom = hud ? Math.min(hud.offsetHeight, this.H * 0.35) : 0;
+      const availH = this.H - bottom;
+      const sx = (this.W - pad * 2) / spanX, sy = (availH - pad * 2) / spanY;
       this.scale = Math.max(this.minScale, Math.min(sx, sy));
       this.offset = {
         x: this.W / 2 - ((minX + maxX) / 2) * this.scale,
-        y: this.H / 2 - ((minY + maxY) / 2) * this.scale,
+        y: availH / 2 - ((minY + maxY) / 2) * this.scale,
       };
     }
 
@@ -202,8 +206,45 @@
         }
       }
 
+      // C&K: metropolises (tower + track color flag on the city) and the merchant
+      if (s.cnk && s.ck) {
+        const trackColor = { trade: '#F2C230', politics: '#2F6FD6', science: '#2E9D47' };
+        for (const [track, m] of Object.entries(s.ck.metropolises || {})) {
+          if (!m) continue;
+          const v = topo.vertices[m.vertexId];
+          if (!v) continue;
+          const p = this.toScreen(v.x, v.y);
+          const k = this.scale / 60;
+          ctx.save();
+          ctx.fillStyle = trackColor[track]; ctx.strokeStyle = '#141414'; ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(p.x + 6 * k, p.y - 10 * k); ctx.lineTo(p.x + 6 * k, p.y - 26 * k);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(p.x + 6 * k, p.y - 26 * k); ctx.lineTo(p.x + 18 * k, p.y - 22 * k); ctx.lineTo(p.x + 6 * k, p.y - 18 * k);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.font = `900 ${10 * k}px Nunito, system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#fff';
+          ctx.fillText('★', p.x, p.y + 1 * k);
+          ctx.restore();
+        }
+        const mer = s.ck.merchant;
+        const mh = mer && topo.hexes[mer.hexId];
+        if (mh) {
+          const owner = s.players.find(pl => pl.id === mer.playerId);
+          const p = this.toScreen(mh.x, mh.y);
+          const r = this.scale * 0.16;
+          const x = p.x - this.scale * 0.42, y = p.y + this.scale * 0.1;
+          ctx.save();
+          ctx.fillStyle = owner ? owner.color : '#fff'; ctx.strokeStyle = '#141414'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(x, y - r * 1.2, r * 0.55, 0, PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x - r, y + r); ctx.lineTo(x, y - r * 0.6); ctx.lineTo(x + r, y + r); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.restore();
+        }
+      }
+
       // Robber
-      const rh = s.map.topo.hexes[s.robberHex];
+      const rh = s.robberHex == null ? null : s.map.topo.hexes[s.robberHex];
       if (rh) {
         const p = this.toScreen(rh.x, rh.y);
         const r = this.scale * 0.22;

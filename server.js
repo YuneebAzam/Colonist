@@ -1,277 +1,284 @@
 // Catan server: Express for static + ws for rooms.
 // Each room has one Game instance; actions are server-authoritative.
+// A socket's player identity is bound when it creates/joins/rejoins a room — the
+// playerId field in client messages is ignored, so nobody can act for someone else.
 
 const path = require('path');
 const http = require('http');
+const crypto = require('crypto');
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const { nanoid } = require('nanoid');
 
-const { Game } = require('./src/game');
+const { Game, normalizeSettings } = require('./src/game');
 const { MAPS, MODES } = require('./src/board');
-const ck = require('./src/ck');
+const C = require('./src/constants');
 
 const PORT = process.env.PORT || 3005;
+const ROOM_IDLE_MS = 30 * 60 * 1000; // empty rooms survive 30 min so players can rejoin
+const LOBBY_GRACE_MS = 30 * 1000;  // a reload in the lobby keeps your seat this long
+const TIMER_SCALE = Number(process.env.CATAN_TIMER_SCALE || 1); // tests only: speeds the turn timer up
+
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/api/maps',  (req, res) => res.json(MAPS));
 app.get('/api/modes', (req, res) => res.json(MODES));
+app.get('/api/settings', (req, res) => res.json({
+  limits: C.SETTINGS_LIMITS, defaultVp: C.DEFAULT_VP, defaultDiscardLimit: C.DEFAULT_DISCARD_LIMIT,
+}));
 app.get('/api/health', (req, res) => res.json({ ok: true, rooms: rooms.size }));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// roomCode -> { game, players: Map<playerId, ws>, hostId }
+// code -> { code, game, sockets: Map<pid, ws>, tokens: Map<token, pid>, hostId, timer, deadline, timerKey, idleTimer }
 const rooms = new Map();
 
+function newSeed() { return crypto.randomInt(0, 2 ** 31); }
+
+function send(ws, msg) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg));
+}
+
 function broadcast(room) {
-  for (const [pid, ws] of room.players) {
-    if (ws.readyState === 1) {
-      ws.send(JSON.stringify({ type: 'state', state: room.game.snapshot(pid) }));
-    }
+  scheduleTimer(room);
+  for (const [pid, ws] of room.sockets) {
+    const state = room.game.snapshot(pid);
+    state.hostId = room.hostId;
+    state.deadline = room.deadline;
+    state.serverNow = Date.now();
+    send(ws, { type: 'state', state });
   }
 }
 
-function send(ws, msg) {
-  if (ws.readyState === 1) ws.send(JSON.stringify(msg));
+// ---- Turn timer: when the game has been waiting on the same thing for too long, auto-act.
+function scheduleTimer(room) {
+  const g = room.game;
+  const secs = g.settings.turnTimer;
+  const running = secs > 0 && !['lobby', 'end'].includes(g.phase);
+  if (!running) {
+    clearTimeout(room.timer); room.timer = null; room.deadline = null; room.timerKey = null;
+    return;
+  }
+  const key = `${g.turnNumber}|${g.phase}|${g.turn}|${g.prompts.map(p => p.id).join(',')}`;
+  if (key === room.timerKey && room.timer) return;
+  room.timerKey = key;
+  clearTimeout(room.timer);
+  const ms = secs * 1000 * TIMER_SCALE;
+  room.deadline = Date.now() + ms;
+  room.timer = setTimeout(() => {
+    room.timer = null;
+    try { g.autoAct(); } catch (e) { console.error('autoAct failed:', e); }
+    broadcast(room);
+  }, ms);
 }
 
-function error(ws, message) {
-  send(ws, { type: 'error', message });
+function makeGame(settings, players = []) {
+  const game = new Game({ ...settings, seed: newSeed() });
+  for (const p of players) game.addPlayer(p.id, p.name);
+  return game;
+}
+
+function addToRoom(room, ws, name) {
+  const pid = nanoid(10);
+  room.game.addPlayer(pid, name);
+  const token = nanoid(24);
+  room.tokens.set(token, pid);
+  bind(room, ws, pid);
+  return { pid, token };
+}
+
+function bind(room, ws, pid) {
+  const prev = room.sockets.get(pid);
+  if (prev && prev !== ws) { prev.ctx = null; try { prev.close(); } catch {} }
+  room.sockets.set(pid, ws);
+  ws.ctx = { code: room.code, pid };
+  const p = room.game.players.find(x => x.id === pid);
+  if (p) p.connected = true;
+  clearTimeout(room.idleTimer);
+}
+
+function cleanCode(c) {
+  const code = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return code;
 }
 
 wss.on('connection', (ws) => {
-  let currentRoom = null;
-  let playerId = null;
-
+  ws.ctx = null;
   ws.on('message', (data) => {
     let msg;
-    try { msg = JSON.parse(data); } catch { return error(ws, 'bad json'); }
+    try { msg = JSON.parse(data); } catch { return send(ws, { type: 'error', message: 'bad json' }); }
+    if (!msg || typeof msg.type !== 'string') return send(ws, { type: 'error', message: 'bad message' });
     try {
-      handle(ws, msg, (room, pid) => { currentRoom = room; playerId = pid; });
+      handle(ws, msg);
     } catch (e) {
-      error(ws, e.message || String(e));
+      send(ws, { type: 'error', message: e.message || String(e) });
     }
   });
-
-  ws.on('close', () => {
-    if (currentRoom && playerId) {
-      const room = rooms.get(currentRoom);
-      if (!room) return;
-      room.players.delete(playerId);
-      // in lobby: remove from game; mid-game: just mark disconnected (they can rejoin)
-      try { room.game.removePlayer(playerId); } catch {}
-      if (room.players.size === 0) {
-        rooms.delete(currentRoom);
-      } else {
-        broadcast(room);
-      }
-    }
-  });
+  ws.on('close', () => onClose(ws));
 });
 
-function handle(ws, msg, setContext) {
+function onClose(ws, explicit = false) {
+  if (!ws.ctx) return;
+  const { code, pid } = ws.ctx;
+  const room = rooms.get(code);
+  if (!room || room.sockets.get(pid) !== ws) return;
+  room.sockets.delete(pid);
+  const p = room.game.players.find(x => x.id === pid);
+  if (p) p.connected = false;
+  if (room.game.phase === 'lobby') {
+    // Keep the lobby seat briefly so a page reload can rejoin; then free it.
+    setTimeout(() => {
+      const r = rooms.get(code);
+      if (!r || r.sockets.has(pid) || r.game.phase !== 'lobby') return;
+      if (r.game.removePlayer(pid)) {
+        for (const [t, id] of r.tokens) if (id === pid) r.tokens.delete(t);
+        broadcast(r);
+      }
+    }, explicit ? 0 : LOBBY_GRACE_MS);
+  }
+  if (room.hostId === pid) {
+    // hand host to a connected player
+    const next = [...room.sockets.keys()][0];
+    if (next) { room.hostId = next; room.game.pushLog(`${room.game.getPlayer(next).name} is now the host`); }
+  }
+  if (room.sockets.size === 0) {
+    clearTimeout(room.idleTimer);
+    room.idleTimer = setTimeout(() => {
+      if (room.sockets.size === 0) { clearTimeout(room.timer); rooms.delete(code); }
+    }, ROOM_IDLE_MS);
+  } else {
+    broadcast(room);
+  }
+}
+
+function requireRoom(ws) {
+  if (!ws.ctx) throw new Error('join a room first');
+  const room = rooms.get(ws.ctx.code);
+  if (!room) throw new Error('room no longer exists');
+  return { room, pid: ws.ctx.pid };
+}
+
+function handle(ws, msg) {
   switch (msg.type) {
     case 'create': {
-      const code = (msg.code || nanoid(5)).toUpperCase();
-      if (rooms.has(code)) throw new Error('room exists');
-      const game = new Game({
-        mapVariant: msg.mapVariant || 'classic',
-        mode: msg.mode || 'base',
-        seed: msg.seed || Date.now(),
-      });
-      const pid = nanoid(8);
-      game.addPlayer(pid, msg.name || 'Host');
-      const room = { code, game, players: new Map(), hostId: pid };
-      room.players.set(pid, ws);
+      if (ws.ctx) throw new Error('already in a room');
+      let code = cleanCode(msg.code);
+      if (code && (code.length < 3 || code.length > 8)) throw new Error('room code must be 3-8 letters/digits');
+      if (!code) do { code = nanoid(5).toUpperCase().replace(/[^A-Z0-9]/g, 'X'); } while (rooms.has(code));
+      if (rooms.has(code)) throw new Error('room code already in use');
+      const settings = normalizeSettings({ ...(msg.settings || {}), mapVariant: msg.mapVariant ?? msg.settings?.mapVariant, mode: msg.mode ?? msg.settings?.mode });
+      const room = { code, game: makeGame(settings), sockets: new Map(), tokens: new Map(), hostId: null };
       rooms.set(code, room);
-      setContext(code, pid);
-      send(ws, { type: 'joined', code, playerId: pid, host: true });
+      const { pid, token } = addToRoom(room, ws, msg.name || 'Host');
+      room.hostId = pid;
+      send(ws, { type: 'joined', code, playerId: pid, token, host: true });
       broadcast(room);
       break;
     }
     case 'join': {
-      const code = (msg.code || '').toUpperCase();
+      if (ws.ctx) throw new Error('already in a room');
+      const code = cleanCode(msg.code);
       const room = rooms.get(code);
       if (!room) throw new Error('no such room');
-      // allow rejoin by name if game started
-      let pid = msg.playerId;
-      if (pid && room.game.players.find(p => p.id === pid)) {
-        // reconnect
-        room.players.set(pid, ws);
-      } else {
-        pid = nanoid(8);
-        room.game.addPlayer(pid, msg.name || 'Player');
-        room.players.set(pid, ws);
+      const { pid, token } = addToRoom(room, ws, msg.name || 'Player');
+      if (!room.hostId || !room.sockets.has(room.hostId)) room.hostId = pid;
+      send(ws, { type: 'joined', code, playerId: pid, token, host: pid === room.hostId });
+      broadcast(room);
+      break;
+    }
+    case 'rejoin': {
+      if (ws.ctx) throw new Error('already in a room');
+      const room = rooms.get(cleanCode(msg.code));
+      if (!room) throw new Error('that game no longer exists');
+      const pid = room.tokens.get(String(msg.token || ''));
+      if (!pid || !room.game.players.some(p => p.id === pid)) throw new Error('cannot rejoin that game');
+      bind(room, ws, pid);
+      if (!room.hostId || !room.sockets.has(room.hostId)) room.hostId = pid;
+      room.game.pushLog(`${room.game.getPlayer(pid).name} reconnected`);
+      send(ws, { type: 'joined', code: room.code, playerId: pid, token: msg.token, host: pid === room.hostId });
+      broadcast(room);
+      break;
+    }
+    case 'leave': {
+      const { room, pid } = requireRoom(ws);
+      if (room.game.phase === 'lobby') {
+        for (const [t, id] of room.tokens) if (id === pid) room.tokens.delete(t);
       }
-      setContext(code, pid);
-      send(ws, { type: 'joined', code, playerId: pid, host: pid === room.hostId });
+      onClose(ws, true);
+      ws.ctx = null;
+      send(ws, { type: 'left' });
+      break;
+    }
+    case 'update_settings': {
+      const { room, pid } = requireRoom(ws);
+      if (room.hostId !== pid) throw new Error('only the host can change settings');
+      if (room.game.phase !== 'lobby') throw new Error('settings are locked once the game starts');
+      const old = room.game.settings;
+      const incoming = { ...old, ...(msg.settings || {}) };
+      if (incoming.mode !== old.mode && !(msg.settings && 'vpTarget' in msg.settings)) {
+        incoming.vpTarget = C.DEFAULT_VP[incoming.mode === 'cnk' ? 'cnk' : 'base'];
+      }
+      const settings = normalizeSettings(incoming);
+      if (room.game.players.length > settings.maxPlayers) {
+        throw new Error(`${room.game.players.length} players are already in the room`);
+      }
+      const players = room.game.players.map(p => ({ id: p.id, name: p.name }));
+      if (settings.mode !== old.mode || settings.mapVariant !== old.mapVariant) {
+        room.game = makeGame(settings, players); // fresh board/rules for the new mode or map
+      } else {
+        room.game.settings = settings;
+      }
+      for (const p of room.game.players) p.connected = room.sockets.has(p.id);
+      room.game.pushLog('settings updated');
       broadcast(room);
       break;
     }
     case 'start_game': {
-      const room = requireRoom(msg);
-      if (room.hostId !== msg.playerId) throw new Error('only host');
+      const { room, pid } = requireRoom(ws);
+      if (room.hostId !== pid) throw new Error('only the host can start');
       room.game.start();
       broadcast(room);
       break;
     }
-    case 'place_settlement': {
-      const room = requireRoom(msg);
-      room.game.placeSettlement(msg.playerId, msg.vertexId, { setup: !!msg.setup });
-      broadcast(room);
-      break;
-    }
-    case 'place_road': {
-      const room = requireRoom(msg);
-      room.game.placeRoad(msg.playerId, msg.edgeId, { setup: !!msg.setup });
-      broadcast(room);
-      break;
-    }
-    case 'end_setup': {
-      const room = requireRoom(msg);
-      room.game.endSetupStep(msg.playerId);
-      broadcast(room);
-      break;
-    }
-    case 'roll': {
-      const room = requireRoom(msg);
-      room.game.rollDice(msg.playerId);
-      broadcast(room);
-      break;
-    }
-    case 'discard': {
-      const room = requireRoom(msg);
-      room.game.discard(msg.playerId, msg.cards || {});
-      broadcast(room);
-      break;
-    }
-    case 'move_robber': {
-      const room = requireRoom(msg);
-      room.game.moveRobber(msg.playerId, msg.hexId, msg.stealFrom ?? null);
-      broadcast(room);
-      break;
-    }
-    case 'steal': {
-      const room = requireRoom(msg);
-      room.game.chooseStealTarget(msg.playerId, msg.targetId);
-      broadcast(room);
-      break;
-    }
-    case 'build_city': {
-      const room = requireRoom(msg);
-      room.game.buildCity(msg.playerId, msg.vertexId);
-      broadcast(room);
-      break;
-    }
-    case 'buy_dev': {
-      const room = requireRoom(msg);
-      room.game.buyDev(msg.playerId);
-      broadcast(room);
-      break;
-    }
-    case 'play_dev': {
-      const room = requireRoom(msg);
-      room.game.playDev(msg.playerId, msg.card, msg.args || {});
-      broadcast(room);
-      break;
-    }
-    case 'bank_trade': {
-      const room = requireRoom(msg);
-      room.game.trade(msg.playerId, msg.give, msg.take);
-      broadcast(room);
-      break;
-    }
-    case 'trade_offer': {
-      const room = requireRoom(msg);
-      room.game.tradeOffer(msg.playerId, msg.give || {}, msg.want || {});
-      broadcast(room);
-      break;
-    }
-    case 'trade_respond': {
-      const room = requireRoom(msg);
-      room.game.tradeRespond(msg.playerId, !!msg.accept);
-      broadcast(room);
-      break;
-    }
-    case 'trade_counter': {
-      const room = requireRoom(msg);
-      room.game.tradeCounter(msg.playerId, msg.give || {}, msg.want || {});
-      broadcast(room);
-      break;
-    }
-    case 'trade_accept': {
-      const room = requireRoom(msg);
-      room.game.tradeAccept(msg.playerId, msg.otherId);
-      broadcast(room);
-      break;
-    }
-    case 'trade_cancel': {
-      const room = requireRoom(msg);
-      room.game.tradeCancel(msg.playerId);
-      broadcast(room);
-      break;
-    }
-    case 'end_turn': {
-      const room = requireRoom(msg);
-      room.game.endTurn(msg.playerId);
-      broadcast(room);
-      break;
-    }
-    // --- C&K actions ---
-    case 'ck_improve': {
-      const room = requireRoom(msg);
-      ck.improveTrack(room.game, msg.playerId, msg.track);
-      broadcast(room);
-      break;
-    }
-    case 'ck_knight_build': {
-      const room = requireRoom(msg);
-      ck.buildKnight(room.game, msg.playerId, msg.vertexId);
-      broadcast(room);
-      break;
-    }
-    case 'ck_knight_promote': {
-      const room = requireRoom(msg);
-      ck.promoteKnight(room.game, msg.playerId, msg.vertexId);
-      broadcast(room);
-      break;
-    }
-    case 'ck_knight_activate': {
-      const room = requireRoom(msg);
-      ck.activateKnight(room.game, msg.playerId, msg.vertexId);
-      broadcast(room);
-      break;
-    }
-    case 'ck_wall': {
-      const room = requireRoom(msg);
-      ck.buildWall(room.game, msg.playerId, msg.vertexId);
+    case 'restart': {
+      // Back to a fresh lobby with the same players and settings. Nothing from the old game carries over.
+      const { room, pid } = requireRoom(ws);
+      if (room.hostId !== pid) throw new Error('only the host can restart');
+      const players = room.game.players.filter(p => room.sockets.has(p.id)).map(p => ({ id: p.id, name: p.name }));
+      for (const [t, id] of room.tokens) if (!players.some(p => p.id === id)) room.tokens.delete(t);
+      room.game = makeGame(room.game.settings, players);
+      for (const p of room.game.players) p.connected = true;
+      room.game.pushLog('new game — host can adjust settings and start');
       broadcast(room);
       break;
     }
     case 'chat': {
-      const room = requireRoom(msg);
-      const player = room.game.getPlayer(msg.playerId);
+      const { room, pid } = requireRoom(ws);
+      const player = room.game.getPlayer(pid);
       const text = (msg.text || '').toString().slice(0, 200);
-      for (const ws2 of room.players.values()) {
+      if (!text.trim()) return;
+      for (const ws2 of room.sockets.values()) {
         send(ws2, { type: 'chat', from: player.name, color: player.color, text });
       }
       break;
     }
-    default:
-      throw new Error('unknown message: ' + msg.type);
+    default: {
+      // Game action. The acting player is always the socket's bound player.
+      const { room, pid } = requireRoom(ws);
+      room.game.act(pid, msg.type, msg);
+      broadcast(room);
+    }
   }
 }
 
-function requireRoom(msg) {
-  const r = rooms.get((msg.code || '').toUpperCase());
-  if (!r) throw new Error('no room');
-  return r;
+if (require.main === module) {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Catan server on http://localhost:${PORT}`);
+    console.log('Share your room code with friends. To play across networks, use a tunnel:');
+    console.log('  cloudflared tunnel --url http://localhost:' + PORT);
+    console.log('(Override with PORT=xxxx node server.js)');
+  });
 }
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Catan server on http://localhost:${PORT}`);
-  console.log('Share your room code with friends. To play across networks, use a tunnel:');
-  console.log('  cloudflared tunnel --url http://localhost:' + PORT);
-  console.log('(Override with PORT=xxxx node server.js)');
-});
+module.exports = { server, rooms };

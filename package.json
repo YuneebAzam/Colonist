@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "tunnel": "cloudflared tunnel --url http://localhost:3005"
+    "tunnel": "cloudflared tunnel --url http://localhost:3005",
+    "test": "node test/rules.js && node test/smoke.js && node test/trade.js && node test/counter.js && node test/server.js && node test/fullgame.js",
+    "test:e2e": "node test/e2e.js base && node test/e2e.js cnk"
   },
   "dependencies": {
     "express": "^4.19.2",
