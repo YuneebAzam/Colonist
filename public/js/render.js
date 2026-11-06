@@ -10,6 +10,12 @@
     desert:{ base: '#E8CB82', dark: '#B9985A', ink: '#6B5024' },
   };
 
+  // Draw a sprite from the atlases if they are loaded; false means "use the procedural fallback".
+  const sprite = (...a) => !!(window.Assets && Assets.ready && Assets.draw(...a));
+  const pkey = (color) => (window.Assets ? Assets.playerKey(color) : 'white');
+  // Flat-top hex sprites: the shoreline's circumradius is 242 of the 512px frame.
+  const HEX_BOX = 512 / 242;
+
   class Renderer {
     constructor(canvas) {
       this.canvas = canvas;
@@ -23,6 +29,7 @@
       this.dragging = null; this.dragMoved = 0;
       this.resize();
       window.addEventListener('resize', () => this.resize());
+      if (window.Assets) Assets.onReady(() => this.draw());
 
       canvas.addEventListener('mousemove', (e) => this.onMove(e));
       canvas.addEventListener('mousedown', (e) => this.onDown(e));
@@ -136,9 +143,14 @@
       for (const h of topo.hexes) {
         const p = this.toScreen(h.x, h.y);
         const r = this.scale * 0.98;
-        drawHex(ctx, p.x, p.y, r, h.res, h.id === s.robberHex);
+        if (sprite(ctx, 'hex_' + h.res, p.x, p.y, r * HEX_BOX, r * HEX_BOX)) {
+          if (h.id === s.robberHex) { ctx.save(); hexPath(ctx, p.x, p.y, r); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill(); ctx.restore(); }
+        } else {
+          drawHex(ctx, p.x, p.y, r, h.res, h.id === s.robberHex);
+        }
         if (h.num !== null && h.num !== undefined) {
-          drawNumber(ctx, p.x, p.y, r * 0.3, h.num);
+          const tb = r * 0.3 * 128 / 52; // token disc is r=52 in its 128px frame
+          if (!sprite(ctx, 'token_' + h.num, p.x, p.y, tb, tb)) drawNumber(ctx, p.x, p.y, r * 0.3, h.num);
         }
         if (this.pick && this.pick.kind === 'hex' && this.pick.filter(h)) {
           ctx.save();
@@ -160,7 +172,11 @@
         const owner = this.ownerOfEdge(e.id);
         const va = topo.vertices[e.a], vb = topo.vertices[e.b];
         const pa = this.toScreen(va.x, va.y), pb = this.toScreen(vb.x, vb.y);
-        if (owner) {
+        const roadLen = Math.hypot(pb.x - pa.x, pb.y - pa.y);
+        if (owner && sprite(ctx, 'piece_road_' + pkey(owner.color), (pa.x + pb.x) / 2, (pa.y + pb.y) / 2,
+          roadLen * 0.8 * 128 / 96, this.scale * 0.17 * 128 / 30, Math.atan2(pb.y - pa.y, pb.x - pa.x))) {
+          // drawn from the atlas
+        } else if (owner) {
           // Road shadow
           ctx.strokeStyle = 'rgba(0,0,0,0.3)';
           ctx.lineWidth = this.scale * 0.19; ctx.lineCap = 'round';
@@ -190,13 +206,24 @@
         const sizeFactor = this.scale / 60;
         if (owner) {
           const isCity = owner.cities.includes(v.id);
-          drawPiece(ctx, p.x, p.y, isCity ? 'city' : 'settlement', owner.color, null, sizeFactor);
-          if (isCity && owner.ck && owner.ck.cityWalls && owner.ck.cityWalls.includes(v.id)) {
-            ctx.strokeStyle = '#FFD166'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(p.x, p.y, 18 * sizeFactor, 0, PI * 2); ctx.stroke();
+          const walled = isCity && owner.ck && owner.ck.cityWalls && owner.ck.cityWalls.includes(v.id);
+          const key = pkey(owner.color);
+          const box = this.scale * (isCity ? 0.84 : 0.7);
+          if (walled) sprite(ctx, 'piece_city_wall_' + key, p.x, p.y, this.scale * 0.76, this.scale * 0.76);
+          if (!sprite(ctx, `piece_${isCity ? 'city' : 'settlement'}_${key}`, p.x, p.y - box * 0.06, box, box)) {
+            drawPiece(ctx, p.x, p.y, isCity ? 'city' : 'settlement', owner.color, null, sizeFactor);
+            if (walled) {
+              ctx.strokeStyle = '#FFD166'; ctx.lineWidth = 2;
+              ctx.beginPath(); ctx.arc(p.x, p.y, 18 * sizeFactor, 0, PI * 2); ctx.stroke();
+            }
           }
         } else if (kOwner) {
-          drawPiece(ctx, p.x, p.y, 'knight', kOwner.player.color, kOwner.knight, sizeFactor);
+          const k = kOwner.knight || { rank: 1, active: false };
+          const tier = ['basic', 'strong', 'mighty'][Math.max(0, Math.min(2, (k.rank || 1) - 1))];
+          const kb = this.scale * 0.5;
+          if (!sprite(ctx, `knight_${tier}_${k.active ? 'active' : 'inactive'}_${pkey(kOwner.player.color)}`, p.x, p.y, kb, kb)) {
+            drawPiece(ctx, p.x, p.y, 'knight', kOwner.player.color, kOwner.knight, sizeFactor);
+          }
         }
         if (this.pick && this.pick.kind === 'vertex' && this.pick.filter(v)) {
           const isHover = this.hover && this.hover.kind === 'vertex' && this.hover.id === v.id;
@@ -215,6 +242,15 @@
           if (!v) continue;
           const p = this.toScreen(v.x, v.y);
           const k = this.scale / 60;
+          if (window.Assets && Assets.has('piece_metropolis_' + track)) {
+            const holder = s.players.find(pl => pl.id === m.playerId);
+            ctx.save();
+            ctx.fillStyle = holder ? holder.color : '#fff'; ctx.strokeStyle = '#141414'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(p.x, p.y, this.scale * 0.36, 0, PI * 2); ctx.fill(); ctx.stroke();
+            ctx.restore();
+            sprite(ctx, 'piece_metropolis_' + track, p.x, p.y - this.scale * 0.03, this.scale * 0.66, this.scale * 0.66);
+            continue;
+          }
           ctx.save();
           ctx.fillStyle = trackColor[track]; ctx.strokeStyle = '#141414'; ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -235,11 +271,19 @@
           const p = this.toScreen(mh.x, mh.y);
           const r = this.scale * 0.16;
           const x = p.x - this.scale * 0.42, y = p.y + this.scale * 0.1;
+          if (window.Assets && Assets.has('token_merchant')) {
+            ctx.save();
+            ctx.strokeStyle = owner ? owner.color : '#fff'; ctx.lineWidth = Math.max(2, this.scale * 0.04);
+            ctx.beginPath(); ctx.arc(x, y, this.scale * 0.2, 0, PI * 2); ctx.stroke();
+            ctx.restore();
+            sprite(ctx, 'token_merchant', x, y, this.scale * 0.4, this.scale * 0.4);
+          } else {
           ctx.save();
           ctx.fillStyle = owner ? owner.color : '#fff'; ctx.strokeStyle = '#141414'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.arc(x, y - r * 1.2, r * 0.55, 0, PI * 2); ctx.fill(); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(x - r, y + r); ctx.lineTo(x, y - r * 0.6); ctx.lineTo(x + r, y + r); ctx.closePath(); ctx.fill(); ctx.stroke();
           ctx.restore();
+          }
         }
       }
 
@@ -248,6 +292,7 @@
       if (rh) {
         const p = this.toScreen(rh.x, rh.y);
         const r = this.scale * 0.22;
+        if (sprite(ctx, 'token_robber', p.x + this.scale * 0.3, p.y - this.scale * 0.12, this.scale * 0.5, this.scale * 0.5)) return;
         ctx.save();
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.beginPath(); ctx.ellipse(p.x, p.y + r + 6, r * 0.9, r * 0.3, 0, 0, PI * 2); ctx.fill();
@@ -645,6 +690,17 @@
     const dockDist = renderer.scale * 0.55;
     const hx = mx + nx * dockDist, hy = my + ny * dockDist;
     const size = renderer.scale * 0.28;
+
+    if (window.Assets && Assets.has('port_pier')) {
+      // Piers from each serviced corner to the ship, then the ship itself (sail stays upright).
+      for (const q of [pa, pb]) {
+        const len = Math.hypot(hx - q.x, hy - q.y);
+        const w = len * 256 / 224;
+        Assets.draw(ctx, 'port_pier', (q.x + hx) / 2, (q.y + hy) / 2, w, w, Math.atan2(hy - q.y, hx - q.x));
+      }
+      const id = 'port_' + (harbor.type === '3:1' ? '3to1' : harbor.type);
+      if (Assets.draw(ctx, id, hx, hy, renderer.scale * 0.85, renderer.scale * 0.85)) return;
+    }
 
     // Pier lines from harbor to the two serviced vertices
     ctx.save();

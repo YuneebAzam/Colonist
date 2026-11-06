@@ -154,6 +154,9 @@ async function resolvePrompts(pages) {
   global.__pages = pages;
   const byId = async (id) => { for (const p of pages) if (await myId(p) === id) return p; };
 
+  for (const p of pages) await waitFor(() => p.evaluate(() => Assets.ready));
+  ok('sprite atlases loaded on every page');
+
   // ---- Setup through the canvas ----
   while (['setup_1', 'setup_2'].includes((await state(host)).phase)) {
     const cur = await byId((await state(host)).currentPlayerId);
