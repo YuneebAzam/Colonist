@@ -1,0 +1,273 @@
+{
+ "frames": {
+  "card_wood": {
+   "x": 0,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_brick": {
+   "x": 400,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_sheep": {
+   "x": 800,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_wheat": {
+   "x": 1200,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_ore": {
+   "x": 1600,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_paper": {
+   "x": 2000,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_cloth": {
+   "x": 2400,
+   "y": 0,
+   "w": 400,
+   "h": 560
+  },
+  "card_coin": {
+   "x": 0,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "card_back_resource": {
+   "x": 400,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "card_back_development": {
+   "x": 800,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "card_back_trade": {
+   "x": 1200,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "card_back_politics": {
+   "x": 1600,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "card_back_science": {
+   "x": 2000,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "dev_knight": {
+   "x": 2400,
+   "y": 560,
+   "w": 400,
+   "h": 560
+  },
+  "dev_victory_point": {
+   "x": 0,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "dev_road_building": {
+   "x": 400,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "dev_year_of_plenty": {
+   "x": 800,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "dev_monopoly": {
+   "x": 1200,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_alchemy": {
+   "x": 1600,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_crane": {
+   "x": 2000,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_engineering": {
+   "x": 2400,
+   "y": 1120,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_invention": {
+   "x": 0,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_irrigation": {
+   "x": 400,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_medicine": {
+   "x": 800,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_mining": {
+   "x": 1200,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_road_building": {
+   "x": 1600,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_smithing": {
+   "x": 2000,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_science_printing": {
+   "x": 2400,
+   "y": 1680,
+   "w": 400,
+   "h": 560
+  },
+  "prog_trade_commercial_harbor": {
+   "x": 0,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_trade_guild_dues": {
+   "x": 400,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_trade_merchant": {
+   "x": 800,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_trade_merchant_fleet": {
+   "x": 1200,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_trade_trade_monopoly": {
+   "x": 1600,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_trade_resource_monopoly": {
+   "x": 2000,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_diplomacy": {
+   "x": 2400,
+   "y": 2240,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_encouragement": {
+   "x": 0,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_espionage": {
+   "x": 400,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_intrigue": {
+   "x": 800,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_sabotage": {
+   "x": 1200,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_taxation": {
+   "x": 1600,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_treason": {
+   "x": 2000,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_wedding": {
+   "x": 2400,
+   "y": 2800,
+   "w": 400,
+   "h": 560
+  },
+  "prog_politics_constitution": {
+   "x": 0,
+   "y": 3360,
+   "w": 400,
+   "h": 560
+  }
+ },
+ "meta": {
+  "image": "cards_atlas.webp",
+  "size": {
+   "w": 2800,
+   "h": 3920
+  },
+  "cell": [
+   400,
+   560
+  ]
+ }
+}

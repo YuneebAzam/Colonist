@@ -1,0 +1,654 @@
+{
+ "frames": {
+  "token_2": {
+   "x": 0,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_3": {
+   "x": 128,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_4": {
+   "x": 256,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_5": {
+   "x": 384,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_6": {
+   "x": 512,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_8": {
+   "x": 640,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_9": {
+   "x": 768,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_10": {
+   "x": 896,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_11": {
+   "x": 1024,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_12": {
+   "x": 1152,
+   "y": 0,
+   "w": 128,
+   "h": 128
+  },
+  "token_robber": {
+   "x": 0,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "token_merchant": {
+   "x": 128,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_road_red": {
+   "x": 256,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_road_blue": {
+   "x": 384,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_road_orange": {
+   "x": 512,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_road_white": {
+   "x": 640,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_road_green": {
+   "x": 768,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_road_brown": {
+   "x": 896,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_settlement_red": {
+   "x": 1024,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_settlement_blue": {
+   "x": 1152,
+   "y": 128,
+   "w": 128,
+   "h": 128
+  },
+  "piece_settlement_orange": {
+   "x": 0,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_settlement_white": {
+   "x": 128,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_settlement_green": {
+   "x": 256,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_settlement_brown": {
+   "x": 384,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_red": {
+   "x": 512,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_blue": {
+   "x": 640,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_orange": {
+   "x": 768,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_white": {
+   "x": 896,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_green": {
+   "x": 1024,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_brown": {
+   "x": 1152,
+   "y": 256,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_wall_red": {
+   "x": 0,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_wall_blue": {
+   "x": 128,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_wall_orange": {
+   "x": 256,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_wall_white": {
+   "x": 384,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_wall_green": {
+   "x": 512,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_city_wall_brown": {
+   "x": 640,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_metropolis_trade": {
+   "x": 768,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_metropolis_politics": {
+   "x": 896,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "piece_metropolis_science": {
+   "x": 1024,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_inactive_red": {
+   "x": 1152,
+   "y": 384,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_inactive_blue": {
+   "x": 0,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_inactive_orange": {
+   "x": 128,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_inactive_white": {
+   "x": 256,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_inactive_green": {
+   "x": 384,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_inactive_brown": {
+   "x": 512,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_active_red": {
+   "x": 640,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_active_blue": {
+   "x": 768,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_active_orange": {
+   "x": 896,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_active_white": {
+   "x": 1024,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_active_green": {
+   "x": 1152,
+   "y": 512,
+   "w": 128,
+   "h": 128
+  },
+  "knight_basic_active_brown": {
+   "x": 0,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_inactive_red": {
+   "x": 128,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_inactive_blue": {
+   "x": 256,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_inactive_orange": {
+   "x": 384,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_inactive_white": {
+   "x": 512,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_inactive_green": {
+   "x": 640,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_inactive_brown": {
+   "x": 768,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_active_red": {
+   "x": 896,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_active_blue": {
+   "x": 1024,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_active_orange": {
+   "x": 1152,
+   "y": 640,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_active_white": {
+   "x": 0,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_active_green": {
+   "x": 128,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_strong_active_brown": {
+   "x": 256,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_inactive_red": {
+   "x": 384,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_inactive_blue": {
+   "x": 512,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_inactive_orange": {
+   "x": 640,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_inactive_white": {
+   "x": 768,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_inactive_green": {
+   "x": 896,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_inactive_brown": {
+   "x": 1024,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_active_red": {
+   "x": 1152,
+   "y": 768,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_active_blue": {
+   "x": 0,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_active_orange": {
+   "x": 128,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_active_white": {
+   "x": 256,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_active_green": {
+   "x": 384,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "knight_mighty_active_brown": {
+   "x": 512,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "die_white_1": {
+   "x": 640,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "die_white_2": {
+   "x": 768,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "die_white_3": {
+   "x": 896,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "die_white_4": {
+   "x": 1024,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "die_white_5": {
+   "x": 1152,
+   "y": 896,
+   "w": 128,
+   "h": 128
+  },
+  "die_white_6": {
+   "x": 0,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_red_1": {
+   "x": 128,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_red_2": {
+   "x": 256,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_red_3": {
+   "x": 384,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_red_4": {
+   "x": 512,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_red_5": {
+   "x": 640,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_red_6": {
+   "x": 768,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_event_barbarian": {
+   "x": 896,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_event_trade": {
+   "x": 1024,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_event_politics": {
+   "x": 1152,
+   "y": 1024,
+   "w": 128,
+   "h": 128
+  },
+  "die_event_science": {
+   "x": 0,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_wood": {
+   "x": 128,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_brick": {
+   "x": 256,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_sheep": {
+   "x": 384,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_wheat": {
+   "x": 512,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_ore": {
+   "x": 640,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_paper": {
+   "x": 768,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_cloth": {
+   "x": 896,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "icon_coin": {
+   "x": 1024,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "hud_barbarian_ship": {
+   "x": 1152,
+   "y": 1152,
+   "w": 128,
+   "h": 128
+  },
+  "hud_knight_shield": {
+   "x": 0,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  },
+  "hud_victory_point": {
+   "x": 128,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  },
+  "hud_longest_road": {
+   "x": 256,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  },
+  "hud_largest_army": {
+   "x": 384,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  },
+  "hud_defender_of_catan": {
+   "x": 512,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  },
+  "hud_robber_asleep": {
+   "x": 640,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  },
+  "hud_robber_active": {
+   "x": 768,
+   "y": 1280,
+   "w": 128,
+   "h": 128
+  }
+ },
+ "meta": {
+  "image": "pieces_hud_atlas.webp",
+  "size": {
+   "w": 1280,
+   "h": 1408
+  },
+  "cell": 128
+ }
+}
