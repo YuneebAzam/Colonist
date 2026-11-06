@@ -194,6 +194,7 @@
         Render.inst.cancelPick();
         UI.cancelPrompt();
         banner('');
+        setTimeout(() => UI.state && UI.renderActions(), 0);
       }
     }
   });
@@ -204,6 +205,7 @@
       Render.inst.cancelPick();
       UI.cancelPrompt();
       banner('');
+      setTimeout(() => UI.state && UI.renderActions(), 0);
     }
   });
   document.getElementById('joinBtn').onclick = () => {
@@ -223,6 +225,8 @@
   };
 
   document.getElementById('historyBtn').onclick = () => UI.openHistoryModal();
+  // Tap the dice to roll
+  document.getElementById('diceBox').onclick = () => { if (UI.canRoll()) Net.send('roll'); };
   document.getElementById('pauseBtn').onclick = () => Net.send(UI.state && UI.state.paused ? 'resume' : 'pause');
   document.getElementById('resetBtn').onclick = () => UI.confirmReset();
 

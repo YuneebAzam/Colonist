@@ -60,7 +60,7 @@ async function resolvePrompts(pages) {
       any = true;
       const modalOpen = await page.locator('#modal:not(.hidden)').count();
       const picking = await page.evaluate(() => !!Render.inst.pick);
-      if (!modalOpen && !picking) { await page.locator('#actionButtons button').first().click(); await sleep(80); }
+      if (!modalOpen && !picking) { await page.locator('#turnStatus').click(); await sleep(80); }
       if (pr.kind === 'discard' || pr.kind === 'give' || pr.kind === 'take_cards') {
         for (let i = 0; i < pr.count; i++) {
           const idx = await page.evaluate(() => [...document.querySelectorAll('#modal .counter-chip-ui')]
@@ -160,13 +160,18 @@ async function resolvePrompts(pages) {
   // ---- Setup through the canvas ----
   while (['setup_1', 'setup_2'].includes((await state(host)).phase)) {
     const cur = await byId((await state(host)).currentPlayerId);
-    await clickButton(cur, 'Place'); await clickTarget(cur);
-    await waitFor(async () => (await state(cur)).setupState.building != null);
-    await clickButton(cur, 'Place road'); await clickTarget(cur);
-    await waitFor(async () => (await state(cur)).setupState.road != null);
-    await clickButton(cur, 'Confirm');
+    // Touch placement: the valid spots are already showing — tap one, then tap a road; it confirms itself.
+    const placed = (t) => t.players.reduce((a, p) => a + p.roads.length, 0);
+    const before = placed(await state(host));
+    await waitFor(() => cur.evaluate(() => Render.inst.pick && Render.inst.pick.kind === 'vertex'));
+    await clickTarget(cur);
+    await waitFor(() => cur.evaluate(() => Render.inst.pick && Render.inst.pick.kind === 'edge'));
+    await clickTarget(cur);
+    await waitFor(async () => { const t = await state(host); return placed(t) === before + 1 && (t.phase === 'roll' || t.setupState.building == null); });
     await sleep(120);
   }
+  assert.strictEqual(await host.locator('#actionButtons button', { hasText: /Place|Confirm/ }).count(), 0, 'no place/confirm buttons');
+  ok('setup by touch: spots shown automatically, tap settlement then road, auto-confirmed');
   s = await state(host);
   assert.strictEqual(s.phase, 'roll');
   for (const p of s.players) assert.strictEqual(p.settlements.length + p.cities.length, 2);
@@ -179,7 +184,7 @@ async function resolvePrompts(pages) {
   for (let turn = 0; turn < 8; turn++) {
     s = await state(host);
     const cur = await byId(s.currentPlayerId);
-    await clickButton(cur, 'Roll');
+    await cur.locator('#dice').click();
     await waitFor(async () => (await state(cur)).rollSeq > s.rollSeq);
     await sleep(700);
     await resolvePrompts(pages);
@@ -207,7 +212,7 @@ async function resolvePrompts(pages) {
       ok('bank trade through the modal');
     }
     if (turn === 2) { await shot(cur, '04-midgame'); await shot(g2, '04-midgame-phone'); }
-    await clickButton(cur, 'End turn');
+    await cur.locator('#endTurnBtn').click();
     await waitFor(async () => (await state(host)).currentPlayerId !== s.currentPlayerId);
   }
   ok('8 turns played through the UI: roll, prompts, road building, end turn');
@@ -220,14 +225,14 @@ async function resolvePrompts(pages) {
     for (const p of g.players) if (p.id !== s.currentPlayerId) p.hand.r.sheep += 10;
     g.alchemyDice = { red: 3, yellow: 4 };
     if (MODE === 'cnk') { g.robberActive = true; g.robberHex = g.robberHome ?? 0; }
-    await clickButton(cur, 'Roll');
+    await cur.locator('#dice').click();
     await waitFor(async () => (await state(host)).prompts.length > 0);
     await shot(await byId(g.players.find(p => p.id !== s.currentPlayerId).id), '05-discard-prompt');
     await resolvePrompts(pages);
     await waitFor(async () => !(await state(host)).busy);
     assert.ok(g.players.every(p => p.id === s.currentPlayerId || require('../src/game').cardCount(p.hand) <= g.handLimit(p) + 6));
     ok('rolling a 7: discards + robber + steal resolved through the UI');
-    await clickButton(cur, 'End turn');
+    await cur.locator('#endTurnBtn').click();
     await waitFor(async () => (await state(host)).currentPlayerId !== s.currentPlayerId);
   }
 
@@ -235,7 +240,7 @@ async function resolvePrompts(pages) {
   if (MODE === 'cnk') {
     s = await state(host);
     const cur = await byId(s.currentPlayerId);
-    await clickButton(cur, 'Roll');
+    await cur.locator('#dice').click();
     await waitFor(async () => (await state(host)).phase === 'main');
     await resolvePrompts(pages); await waitFor(async () => !(await state(host)).busy);
     const gp = room.game.current();
@@ -261,7 +266,7 @@ async function resolvePrompts(pages) {
     await waitFor(async () => !gp.ck.progress.includes('irrigation'));
     await shot(cur, '06-cnk-knight-improve');
     ok(`C&K through the UI: recruit + activate knight, trade level 1, Irrigation (+${gp.hand.r.wheat - wheat0} wheat)`);
-    await clickButton(cur, 'End turn');
+    await cur.locator('#endTurnBtn').click();
     await waitFor(async () => (await state(host)).currentPlayerId !== s.currentPlayerId);
   }
 
@@ -270,7 +275,7 @@ async function resolvePrompts(pages) {
   {
     const g = room.game;
     const cur = await byId(s.currentPlayerId);
-    await clickButton(cur, 'Roll');
+    await cur.locator('#dice').click();
     await waitFor(async () => (await state(host)).rollSeq > s.rollSeq);
     await resolvePrompts(pages); await waitFor(async () => !(await state(host)).busy && (await state(host)).phase === 'main');
     const p = g.current();

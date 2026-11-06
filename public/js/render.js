@@ -199,6 +199,7 @@
           ctx.setLineDash(isHover ? [] : [this.scale * 0.1, this.scale * 0.08]);
           ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
           ctx.setLineDash([]);
+          spotMarker(ctx, (pa.x + pb.x) / 2, (pa.y + pb.y) / 2, Math.max(7, this.scale * 0.15), isHover);
         }
       }
 
@@ -231,9 +232,7 @@
         }
         if (this.pick && this.pick.kind === 'vertex' && this.pick.filter(v)) {
           const isHover = this.hover && this.hover.kind === 'vertex' && this.hover.id === v.id;
-          ctx.fillStyle = isHover ? '#FFD166' : 'rgba(255,255,255,0.55)';
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, isHover ? 10 : 6, 0, PI * 2); ctx.fill();
+          spotMarker(ctx, p.x, p.y, Math.max(9, this.scale * 0.22), isHover);
         }
       }
 
@@ -413,7 +412,7 @@
       const s = this.state; if (!s) return null;
       const topo = s.map.topo;
       if (this.pick.kind === 'vertex') {
-        let best = null, bestD = 24;
+        let best = null, bestD = Math.max(24, this.scale * 0.3);
         for (const v of topo.vertices) {
           if (!this.pick.filter(v)) continue;
           const p = this.toScreen(v.x, v.y);
@@ -423,7 +422,7 @@
         return best ? { kind: 'vertex', id: best.id } : null;
       }
       if (this.pick.kind === 'edge') {
-        let best = null, bestD = 18;
+        let best = null, bestD = Math.max(18, this.scale * 0.22);
         for (const e of topo.edges) {
           if (!this.pick.filter(e)) continue;
           const va = topo.vertices[e.a], vb = topo.vertices[e.b];
@@ -456,7 +455,7 @@
   // viewport along an axis is ignored on that axis so the board never collapses.
   function hudInsets(W, H) {
     const ins = { top: 0, right: 0, bottom: 0, left: 0 };
-    const regions = ['matchHeader', 'zoomCtl', 'barbarianHud', 'players', 'logChat', 'hud', 'turnCluster'];
+    const regions = ['matchHeader', 'zoomCtl', 'barbarianHud', 'players', 'logChat', 'hud', 'turnDock', 'endTurnBtn'];
     for (const id of regions) {
       const el = document.getElementById(id);
       if (!el) continue;
@@ -495,6 +494,17 @@
   }
 
   function strokeHex(ctx, cx, cy, r) { hexPath(ctx, cx, cy, r); ctx.stroke(); }
+
+  // A big translucent circle on every spot you can tap (settlement, city, road, knight).
+  function spotMarker(ctx, x, y, r, hover) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, hover ? r * 1.15 : r, 0, PI * 2);
+    ctx.fillStyle = hover ? 'rgba(255, 209, 102, 0.85)' : 'rgba(255, 235, 120, 0.38)';
+    ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = hover ? '#FFFFFF' : 'rgba(255, 214, 0, 0.9)';
+    ctx.stroke();
+    ctx.restore();
+  }
 
   function drawHex(ctx, cx, cy, r, res, hasRobber) {
     ctx.save();

@@ -21,14 +21,14 @@ async function waitFor(fn, ms = 8000) {
   throw new Error('timeout waiting');
 }
 
-const DESKTOP_REGIONS = ['#matchHeader', '#zoomCtl', '#players', '#logChat', '#hud', '#turnCluster'];
+const DESKTOP_REGIONS = ['#matchHeader', '#zoomCtl', '#players', '#logChat', '#hud', '#diceBox'];
 
 async function layoutFacts(page) {
   return page.evaluate((ids) => {
     const vis = (sel) => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); const cs = getComputedStyle(e);
       return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 0 && r.height > 0 ? { x: r.left, y: r.top, w: r.width, h: r.height } : false; };
     const out = { scrollW: document.documentElement.scrollWidth, innerW: innerWidth, innerH: innerHeight, rects: {} };
-    for (const id of [...ids, '#barbarianHud', '#chatToggle']) out.rects[id] = vis(id);
+    for (const id of [...ids, '#barbarianHud', '#chatToggle', '#endTurnBtn', '#diceBox']) out.rects[id] = vis(id);
     const c = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
     out.centre = c ? (c.id || c.className) : null;
     out.mode = document.getElementById('screen-game').dataset.mode;
@@ -79,7 +79,7 @@ const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h 
   // ---- phone
   const p = await layoutFacts(phone);
   assert(p.scrollW <= p.innerW, `phone horizontal scroll (${p.scrollW} > ${p.innerW})`);
-  for (const id of ['#matchHeader', '#players', '#hud', '#turnCluster', '#chatToggle']) assert(p.rects[id], `phone: ${id} visible`);
+  for (const id of ['#matchHeader', '#players', '#hud', '#diceBox', '#endTurnBtn', '#chatToggle']) assert(p.rects[id], `phone: ${id} visible`);
   assert.strictEqual(p.rects['#logChat'], false, 'phone: log/chat collapsed');
   if (MODE === 'base') assert.strictEqual(p.rects['#barbarianHud'], false, 'phone base: barbarian HUD hidden');
   assert.strictEqual(p.centre, 'board', `phone: board centre covered by ${p.centre}`);

@@ -18,7 +18,10 @@ module.exports = async ({ host, phone, MODE, assert, ok, waitFor }) => {
       robberAsleep: !!q('#barbarianHud img[src*="hud_robber_asleep"]'),
       metroChips: qa('#barbarianHud .bh-metro').length,
       strength: (q('#barbarianHud .bh-strength') || {}).textContent,
-      primaryInCluster: !!q('#turnCluster #primaryAction'),
+      noCluster: !q('#turnCluster') && !q('#primaryAction'),
+      endTurnOutsideBar: !!q('#endTurnBtn') && !q('#hud').contains(q('#endTurnBtn')),
+      builds: qa('#actionButtons [data-build]').map(b => [b.dataset.build, (b.querySelector('.left') || {}).textContent]),
+      autoPick: !!(window.Render && Render.inst.pick && Render.inst.pick.kind === 'vertex'),
       logIcons: qa('#log .l').length,
       logNamesColoured: qa('#log b[style*="color"]').length,
     };
@@ -32,6 +35,12 @@ module.exports = async ({ host, phone, MODE, assert, ok, waitFor }) => {
   assert(/^\d+\/\d+$/.test(f.limit || ''), `hand limit badge "${f.limit}"`);
   assert.strictEqual(f.diceImgs.length, MODE === 'cnk' ? 3 : 2, `dice images ${f.diceImgs}`);
   assert(f.diceImgs[0].includes('die_white_') && f.diceImgs[1].includes('die_red_'), 'white + red die');
+  assert(f.noCluster, 'old turn panel and floating primary button are gone');
+  assert(f.endTurnOutsideBar, 'End Turn is its own button, outside the bar');
+  const want = MODE === 'cnk' ? ['road', 'settlement', 'city', 'knight', 'wall'] : ['road', 'settlement', 'city'];
+  assert.deepStrictEqual(f.builds.map(b => b[0]).filter(b => want.includes(b)), want, `build buttons in the bar ${JSON.stringify(f.builds)}`);
+  assert.deepStrictEqual(f.builds.filter(b => ['road', 'settlement', 'city'].includes(b[0])).map(b => b[1]), ['15', '5', '4'], 'pieces left badges');
+  assert(f.autoPick, 'setup spots are shown without pressing a button');
   assert(f.logNamesColoured >= 1, 'log lines colour player names');
   if (MODE === 'cnk') {
     assert.strictEqual(f.tracks.length, 3, 'track badges on every card');
@@ -54,8 +63,9 @@ module.exports = async ({ host, phone, MODE, assert, ok, waitFor }) => {
   const vis = (page, sel) => page.evaluate((sel) => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; }, sel);
   assert(await vis(host, '#pauseBtn') && await vis(host, '#resetBtn'), 'host sees pause + reset');
   assert(!(await vis(phone, '#pauseBtn')) && !(await vis(phone, '#resetBtn')), 'guest does not');
-  const live = (page) => page.evaluate(() => [...document.querySelectorAll('#actionButtons button, #primaryAction')]
-    .filter(b => !b.disabled && !b.classList.contains('hidden')).length);
+  // "Live" = an enabled bar button / End Turn, or board spots waiting for a tap.
+  const live = (page) => page.evaluate(() => [...document.querySelectorAll('#actionButtons button, #endTurnBtn')]
+    .filter(b => !b.disabled && !b.classList.contains('hidden')).length + (Render.inst.pick ? 1 : 0));
   assert((await live(host)) > 0, 'host has live action buttons before pausing');
   await host.locator('#pauseBtn').click();
   await waitFor(() => phone.evaluate(() => UI.state.paused));

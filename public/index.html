@@ -158,17 +158,18 @@
       </div>
     </section>
 
+    <!-- Bottom bar: hand on the left, build / trade actions on the right. End Turn stands apart. -->
     <div id="hud" class="hud dock">
       <div id="hand" class="hand"></div>
+      <div id="actionButtons" class="action-bar"></div>
     </div>
+    <button id="endTurnBtn" class="end-turn-btn" disabled><span class="et-ico">⏭</span><span class="et-lbl">End Turn</span></button>
 
-    <section id="turnCluster" class="turn-cluster">
-      <div id="turnInfo" class="turn-info"></div>
-      <div id="dice" class="dice"></div>
-      <div id="primarySlot" class="primary-slot"></div>
-      <div id="actionButtons" class="action-buttons"></div>
-      <div id="ckPanel" class="ck-panel hidden"></div>
-    </section>
+    <!-- Turn status + dice (tap the dice to roll) -->
+    <div id="turnDock" class="turn-dock">
+      <div id="turnStatus" class="turn-status"><div id="turnInfo" class="turn-info"></div></div>
+      <div id="diceBox" class="dice-box"><div id="dice" class="dice" title="Tap to roll"></div></div>
+    </div>
 
     <div id="modal" class="modal hidden">
       <div class="modal-body" id="modalBody"></div>

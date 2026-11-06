@@ -29,7 +29,7 @@
 }
 
 /* Shared surface for every floating region */
-.hud-pill, .barbarian-hud:not(:empty), .roster, .log-chat, .dock, .turn-cluster {
+.hud-pill, .barbarian-hud:not(:empty), .roster, .log-chat, .dock, .turn-status, .dice-box {
   background: var(--bg-hud-primary);
   border: 1px solid var(--border-hud-subtle);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -80,7 +80,7 @@
 /* ---- PlayerRoster */
 .roster {
   top: 76px; left: 16px; width: 270px;
-  max-height: calc(100vh - 76px - 236px);
+  max-height: calc(100vh - 76px - 112px - 200px - 24px);
   overflow-y: auto; padding: 8px; border-radius: 14px;
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -93,7 +93,7 @@
 
 /* ---- GameLogChat */
 .log-chat {
-  left: 16px; bottom: 16px; width: 320px; height: 200px;
+  left: 16px; bottom: 112px; width: 320px; height: 200px;
   border-radius: 14px; display: flex; flex-direction: column; overflow: hidden;
 }
 .lc-tabs { display: flex; gap: 2px; padding: 4px; border-bottom: 1px solid var(--border-hud-subtle); flex: 0 0 auto; }
@@ -107,34 +107,70 @@
 .log-chat .log { overflow-y: auto; padding: 6px 10px; }
 .log-chat .chat { display: flex; flex-direction: column; }
 
-/* ---- PlayerHandDock */
+/* ---- Bottom bar: hand (left) | actions (right). End Turn stands on its own. */
 .hud-screen .dock {
-  left: 50%; right: auto; bottom: 16px; transform: translateX(-50%);
-  padding: 8px 10px; border-radius: 16px;
-  max-width: calc(100vw - 720px); overflow-x: auto;
+  left: 16px; right: 122px; bottom: 16px; height: 86px; transform: none; max-width: none;
+  display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 14px;
   pointer-events: auto;
 }
-.hud-screen .dock:has(#hand:empty) { display: none; }
-.dock .hand { flex-wrap: nowrap; }
+.dock .hand { flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: visible; flex-wrap: nowrap; justify-content: flex-start; padding-top: 10px; }
+.action-bar {
+  flex: 0 1 auto; min-width: 0; overflow-x: auto; display: flex; gap: 5px; align-items: center; padding-top: 6px; padding-right: 6px;
+  border-left: 1px solid var(--border-hud-subtle); padding-left: 12px;
+}
+.bar-btn {
+  position: relative; flex: 0 0 auto; width: 56px; height: 70px; margin-top: 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: var(--bg-hud-panel); border: 1px solid var(--border-hud-subtle); border-radius: 10px;
+  color: var(--fg); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer;
+  transition: transform .12s ease, border-color .12s;
+}
+.bar-btn img { width: 32px; height: 32px; object-fit: contain; }
+.bar-btn .bb-emoji { font-size: 24px; line-height: 32px; }
+.bar-btn .lbl { white-space: nowrap; }
+.bar-btn .left {
+  position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 4px;
+  display: grid; place-items: center; border-radius: 10px; font-size: 11px; font-weight: 900;
+  background: var(--bg-hud-elevated); color: var(--fg); border: 1px solid var(--border-hud-subtle);
+}
+.bar-btn:not(:disabled):hover { transform: translateY(-3px); border-color: var(--accent-electric); }
+.bar-btn:disabled { opacity: .38; cursor: not-allowed; }
 
-/* ---- TurnActionCluster */
-.turn-cluster {
-  right: 16px; bottom: 16px; width: 300px;
-  max-height: calc(100vh - 92px); overflow-y: auto;
-  padding: 10px; border-radius: 14px;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.turn-cluster > :empty { display: none; }
-.primary-slot .primary-float {
-  position: static; width: 100%;
+.end-turn-btn {
+  position: absolute; z-index: 5; right: 16px; bottom: 16px; width: 96px; height: 86px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 0; border-radius: 14px; cursor: pointer; font: inherit; font-weight: 900; font-size: 13px;
   background: var(--accent-electric); color: var(--bg-hud-primary);
-  box-shadow: 0 4px 0 var(--accent-electric-dim); text-shadow: none;
+  box-shadow: 0 4px 0 var(--accent-electric-dim), 0 8px 24px rgba(0, 0, 0, .35);
 }
-.primary-slot .primary-float:active { box-shadow: 0 2px 0 var(--accent-electric-dim); }
-.primary-slot .primary-float.hidden { display: none; }
+.end-turn-btn .et-ico { font-size: 26px; line-height: 1; }
+.end-turn-btn:disabled { background: var(--bg-hud-panel); color: var(--fg-mute); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); cursor: default; }
+.end-turn-btn:not(:disabled):active { transform: translateY(2px); box-shadow: 0 2px 0 var(--accent-electric-dim); }
+
+/* ---- Turn status pill + dice (tap the dice to roll) */
+.turn-dock {
+  position: absolute; z-index: 5; right: 16px; bottom: 112px;
+  display: flex; align-items: flex-end; gap: 10px;
+}
+.turn-status {
+  min-width: 200px; max-width: 320px; padding: 8px 12px; border-radius: 12px;
+}
+.turn-status .turn-info { display: flex; align-items: center; gap: 8px; padding: 0; background: none; box-shadow: none; }
+.turn-status .ts-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; border: 2px solid var(--bg-hud-primary); }
+.turn-status .ts-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.turn-status .ts-text b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.turn-status .ts-text small { font-size: 11px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.turn-status.mine { border-color: var(--accent-electric); }
+.turn-status.actionable { cursor: pointer; border-color: var(--status-warning); animation: hudPulse 1.4s ease-in-out infinite; }
+.dice-box { padding: 8px; border-radius: 14px; }
+.dice-box .dice { padding: 0; min-height: 0; }
+.hud-screen .dice-box .dice img.die { width: 60px; height: 60px; }
+.dice-box.can-roll { cursor: pointer; border-color: var(--accent-electric); animation: hudPulse 1.4s ease-in-out infinite; }
+.dice-box.can-roll .dice img.die.idle { opacity: .85; }
+@keyframes hudPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, .45); } 50% { box-shadow: 0 0 0 8px rgba(0, 229, 255, 0); } }
 
 /* Floating gain chips and trade bar clear the dock */
-.hud-screen .floats { bottom: 120px; }
+.hud-screen .floats { bottom: 200px; }
 
 /* ---- Narrower desktops: the log/chat becomes a drawer, the dock moves left of the cluster */
 @media (max-width: 1100px) {
@@ -143,8 +179,7 @@
   .log-chat.open {
     display: flex; position: fixed; left: 16px; bottom: 16px; width: min(360px, calc(100vw - 32px)); height: 50vh; z-index: 40;
   }
-  .roster { max-height: calc(100vh - 76px - 110px); }
-  .hud-screen .dock { left: 16px; right: 332px; transform: none; max-width: none; }
+  .roster { max-height: calc(100vh - 76px - 112px - 200px - 24px); }
 }
 
 /* ---- Phone */
@@ -169,12 +204,23 @@
   .barbarian-hud { top: 124px; max-width: calc(100vw - 16px); padding: 4px 10px; min-height: 0; gap: 8px; font-size: 11px; }
   .hud-screen .banner { top: 124px; }
 
-  .turn-cluster {
-    left: 8px; right: 8px; bottom: 74px; width: auto; max-height: 30vh; padding: 8px;
-  }
-  .hud-screen .dock { left: 8px; right: 8px; bottom: 8px; padding: 6px; }
   .log-chat.open { left: 0; right: 0; bottom: 0; width: auto; height: 55vh; border-radius: 14px 14px 0 0; }
-  .hud-screen .floats { bottom: calc(30vh + 90px); }
+
+  /* Bar becomes two rows: hand, then actions. End Turn and the dice sit just above it. */
+  .hud-screen .dock { left: 8px; right: 8px; bottom: 8px; height: 128px; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px 6px; }
+  .dock .hand { flex: 0 0 56px; padding-top: 8px; }
+  .action-bar { flex: 0 0 60px; border-left: 0; padding-left: 0; border-top: 1px solid var(--border-hud-subtle); padding-top: 4px; }
+  .bar-btn { width: 52px; height: 52px; margin-top: 2px; font-size: 9px; }
+  .bar-btn img { width: 24px; height: 24px; }
+  .bar-btn .bb-emoji { font-size: 18px; line-height: 24px; }
+  .bar-btn .left { top: -4px; right: -4px; min-width: 17px; height: 17px; font-size: 10px; }
+  .end-turn-btn { right: 8px; bottom: 144px; width: 84px; height: 58px; font-size: 11px; }
+  .end-turn-btn .et-ico { font-size: 18px; }
+  .turn-dock { left: 8px; right: 100px; bottom: 144px; }
+  .turn-status { flex: 1; min-width: 0; padding: 6px 8px; }
+  .dice-box { padding: 5px; }
+  .hud-screen .dice-box .dice img.die { width: 40px; height: 40px; }
+  .hud-screen .floats { bottom: 220px; }
 }
 
 /* =====================================================================
@@ -274,7 +320,6 @@
   .dock .hand { gap: 6px; }
   .dock .tray + .tray { padding-left: 6px; }
   .dock .hand-limit { padding: 4px 6px; font-size: 11px; }
-  .hud-screen .dice img.die { width: 40px; height: 40px; }
 }
 
 /* Paused overlay (everyone) */

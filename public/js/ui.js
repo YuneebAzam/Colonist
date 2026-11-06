@@ -9,6 +9,7 @@
     politics: 'Fortress: promote strong knights to mighty',
     science: 'Aqueduct: a free resource when a roll gives you nothing',
   };
+  const C_PIECES = { roads: 15, settlements: 5, cities: 4 };
   const COSTS = {
     road:   { wood: 1, brick: 1 },
     settle: { wood: 1, brick: 1, sheep: 1, wheat: 1 },
@@ -62,7 +63,8 @@
       this.renderOpenTrade();
       if (state.paused) {
         // Nothing can be done while the host has paused: grey out every action, hold prompts back.
-        document.querySelectorAll('#actionButtons button, #primaryAction').forEach(b => { b.disabled = true; });
+        document.querySelectorAll('#actionButtons button, #endTurnBtn').forEach(b => { b.disabled = true; });
+        if (Render.inst && Render.inst.pick) { Render.inst.cancelPick(); banner(''); }
         return;
       }
       this.openNextPrompt();
@@ -197,18 +199,35 @@
 
     renderTurnInfo() {
       const el = document.getElementById('turnInfo');
+      const box = document.getElementById('turnStatus');
       const s = this.state;
       const cur = s.players[s.turn];
-      const phaseLabel = s.prompts && s.prompts.length
-        ? (PROMPT_TEXT[s.prompts[0].kind] || s.prompts[0].kind)
-        : s.phase.replace('_', ' ');
+      const mine = this.myPrompts();
+      const mineTurn = s.currentPlayerId === Net.playerId;
+      let who, what, act = null;
+      if (s.phase === 'lobby') { who = 'Lobby'; what = 'waiting to start'; }
+      else if (s.phase === 'end') {
+        const w = s.players.find(p => p.id === s.winner);
+        who = `🏆 ${esc(w ? w.name : '?')} wins`; what = 'tap for results';
+        act = () => { this._lobbyKey = null; this.renderLobby(); };
+      } else if (mine.length) {
+        who = esc(PROMPT_TEXT[mine[0].kind] || pretty(mine[0].kind)); what = 'tap to choose';
+        act = () => this.openPrompt(mine[0], true);
+      } else if (s.prompts && s.prompts.length) {
+        const names = [...new Set(s.prompts.map(p => s.players.find(x => x.id === p.playerId)?.name))];
+        who = 'Waiting'; what = `for ${esc(names.join(', '))}`;
+      } else {
+        who = mineTurn ? 'Your turn' : `${esc(cur ? cur.name : '—')}'s turn`;
+        what = { setup_1: 'place a settlement + road', setup_2: s.cnk ? 'place a city + road' : 'place a settlement + road',
+          roll: mineTurn ? 'tap the dice to roll' : 'rolling', main: mineTurn ? 'build, trade or end your turn' : 'playing' }[s.phase] || pretty(s.phase);
+      }
+      box.classList.toggle('actionable', !!act);
+      box.classList.toggle('mine', mineTurn && s.phase !== 'lobby' && s.phase !== 'end');
+      box.onclick = act;
       el.innerHTML = `
-        <div><strong>${esc(cur && s.phase !== 'lobby' ? cur.name : '—')}</strong><br>
-          <span style="color:var(--fg-dim); font-size:11px">to act · first to ${s.vpTarget} VP</span>
-        </div>
-        <span class="timer hidden" id="turnTimer"></span>
-        <span class="phase-pill">${esc(phaseLabel)}</span>
-      `;
+        ${cur && s.phase !== 'lobby' ? `<span class="ts-dot" style="background:${cur.color}"></span>` : ''}
+        <span class="ts-text"><b>${who}</b><small>${what} · first to ${s.vpTarget} VP</small></span>
+        <span class="timer hidden" id="turnTimer"></span>`;
       this.tickTimer();
       if (!this._timerInterval) this._timerInterval = setInterval(() => this.tickTimer(), 500);
     },
@@ -226,6 +245,7 @@
 
     renderDice() {
       const el = document.getElementById('dice');
+      document.getElementById('diceBox').classList.toggle('can-roll', this.canRoll());
       const d = this.state.dice;
       if (!d || !d.red) {
         el.innerHTML = diceHtml({ red: 1, yellow: 1, event: this.state.cnk ? 'barbarian' : null }, true);
@@ -282,126 +302,95 @@
     },
 
     // ---------------- Cities & Knights panel ----------------
+    // Barbarian banner only (city levels live in the Improve menu).
     renderCK() {
-      const el = document.getElementById('ckPanel');
       const s = this.state;
-      if (!s.cnk || !s.ck || s.phase === 'lobby') { el.classList.add('hidden'); document.getElementById('barbarianHud').innerHTML = ''; return; }
-      el.classList.remove('hidden');
-      const c = s.ck;
+      if (!s.cnk || !s.ck || s.phase === 'lobby') { document.getElementById('barbarianHud').innerHTML = ''; return; }
       this.renderBarbarianHud();
-      const me = this.me;
-      const tracks = me && me.ck ? TRACKS.map(t => {
-        const lvl = me.ck.tracks[t];
-        const m = c.metropolises[t];
-        const mine = m && m.playerId === me.id;
-        return `<div class="trk ${t}" title="${lvl >= 3 ? esc(TRACK_ABILITY[t]) : `Level 3 unlocks: ${esc(TRACK_ABILITY[t])}`}">
-          <span class="trk-name">${t}</span>
-          <span class="trk-bar">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('')}</span>
-          <span class="trk-lvl">${lvl}${mine ? ' 🏰' : ''}</span>
-        </div>`;
-      }).join('') : '';
-      el.innerHTML = `<div class="sec-label">Your city levels</div><div class="trks">${tracks}</div>`;
     },
 
-    renderPrimary() {
-      // Big floating button for the turn's main step (Roll / End turn), always visible on the board.
-      let btn = document.getElementById('primaryAction');
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'primaryAction'; btn.className = 'primary-float';
-        document.getElementById('primarySlot').appendChild(btn);
-      }
-      const s = this.state, me = this.me;
-      const mine = s.currentPlayerId === Net.playerId && !s.busy && !this.myPrompts().length;
-      let label = null, fn = null;
-      if (mine && s.phase === 'roll') { label = '🎲 Roll dice'; fn = () => Net.send('roll'); }
-      if (mine && s.phase === 'main') {
-        if (s.cnk && me.ck.progress.length > 4) { label = 'Discard progress cards'; fn = () => this.openProgressModal(true); }
-        else { label = 'End turn ➜'; fn = () => Net.send('end_turn'); }
-      }
-      btn.classList.toggle('hidden', !label);
-      if (label) { btn.textContent = label; btn.onclick = fn; }
-    },
-
-    renderActions() {
-      this.renderPrimary();
-      const el = document.getElementById('actionButtons');
+    canRoll() {
       const s = this.state;
-      const myTurn = s.currentPlayerId === Net.playerId;
+      return !!s && !s.paused && s.phase === 'roll' && s.currentPlayerId === Net.playerId && !s.busy && !this.myPrompts().length;
+    },
+
+    // ---------------- Bottom bar actions + End Turn ----------------
+    renderActions() {
+      const el = document.getElementById('actionButtons');
+      const end = document.getElementById('endTurnBtn');
+      const s = this.state, me = this.me;
       el.innerHTML = '';
-      const note = (html) => { el.innerHTML += `<div class="action-note">${html}</div>`; };
+      end.disabled = true;
+      end.querySelector('.et-lbl').textContent = 'End Turn';
+      end.onclick = null;
+      if (!me || s.phase === 'lobby' || s.phase === 'end') return;
 
-      if (s.phase === 'lobby') { note(s.hostId === Net.playerId ? 'Set up the room on the board →' : 'Waiting for host…'); return; }
-      if (s.phase === 'end') {
-        const w = s.players.find(p => p.id === s.winner);
-        note(`🏆 ${esc(w ? w.name : '?')} wins!`);
-        if (s.hostId === Net.playerId) el.appendChild(btnEl('New game', () => Net.send('restart'), true, 'primary'));
-        el.appendChild(btnEl('Show results', () => { this._lobbyKey = null; this.renderLobby(); }, true));
-        return;
-      }
+      const myTurn = s.currentPlayerId === Net.playerId && !s.busy;
+      const waiting = !!(s.prompts && s.prompts.length);
+      const main = myTurn && s.phase === 'main' && !waiting;
 
-      // Pending choices first
-      const mine = this.myPrompts();
-      if (mine.length) {
-        for (const pr of mine) el.appendChild(btnEl(PROMPT_TEXT[pr.kind] || pr.kind, () => this.openPrompt(pr, true), true, 'primary'));
-        return;
-      }
-      if (s.prompts && s.prompts.length) {
-        const names = [...new Set(s.prompts.map(p => s.players.find(x => x.id === p.playerId)?.name))];
-        note(`Waiting for ${esc(names.join(', '))}…`);
-        return;
-      }
+      // Setup is pure touch: show the spots, tap a building, tap a road, done.
+      if ((s.phase === 'setup_1' || s.phase === 'setup_2') && myTurn && !waiting && !s.paused) this.autoSetupPick();
 
-      if (s.phase === 'setup_1' || s.phase === 'setup_2') {
-        if (!myTurn) { note(`${esc(s.players[s.turn].name)} is placing`); return; }
-        const st = s.setupState || {};
-        const what = s.cnk && s.phase === 'setup_2' ? 'city' : 'settlement';
-        if (st.building == null) el.appendChild(btnEl(`Place ${what}`, () => this.pickSettlementSetup(), true, 'primary'));
-        else if (st.road == null) el.appendChild(btnEl('Place road', () => this.pickRoadSetup(), true, 'primary'));
-        else el.appendChild(btnEl('Confirm placement', () => Net.send('end_setup'), true, 'primary'));
-        return;
-      }
-
-      if (!myTurn) { note(`Waiting for ${esc(s.players[s.turn].name)}…`); return; }
-      const me = this.me;
-
-      if (s.phase === 'roll') {
-        el.appendChild(btnEl('🎲 Roll dice', () => Net.send('roll'), true, 'primary'));
-        if (!s.cnk) {
-          const playable = (me.devCards || []).filter(c => c !== 'vp');
-          if (playable.length && !me.devPlayedThisTurn) el.appendChild(btnEl('🎴 Play dev card', () => this.openPlayDevModal(), true));
-        } else if (me.ck.progress && me.ck.progress.includes('alchemy')) {
-          el.appendChild(btnEl('⚗ Play Alchemy', () => this.playProgressCard('alchemy'), true));
-        }
-        return;
-      }
-
-      // phase === 'main'
       const canPay = (c) => Object.entries(c).every(([k, v]) => (me.hand.r[k] || 0) >= v);
-      el.appendChild(actionBtn('Road',       Icons.road,   COSTS.road,   () => this.pickRoadBuild(), canPay(COSTS.road)));
-      el.appendChild(actionBtn('Settlement', Icons.settle, COSTS.settle, () => this.pickSettlementBuild(), canPay(COSTS.settle)));
-      el.appendChild(actionBtn('City',       Icons.city,   COSTS.city,   () => this.pickCityBuild(), canPay(COSTS.city)));
-      if (!s.cnk) {
-        el.appendChild(actionBtn(`Dev card (${s.devDeckCount})`, Icons.dev, COSTS.dev, () => Net.send('buy_dev'), canPay(COSTS.dev) && s.devDeckCount > 0));
-      } else {
-        el.appendChild(actionBtn('Knight', Icons.knight, COSTS.knight, () => this.pickKnightBuild(), canPay(COSTS.knight)));
-        el.appendChild(actionBtn('City wall', '🧱', COSTS.wall, () => this.pickWallBuild(), canPay(COSTS.wall)));
-      }
-      el.appendChild(btnEl('🏦 Bank', () => this.openBankTradeModal()));
-      el.appendChild(btnEl('🤝 Trade', () => this.openPlayerTradeModal()));
-      if (!s.cnk) {
-        const playable = (me.devCards || []).filter(c => c !== 'vp');
-        const b = btnEl('🎴 Play dev', () => this.openPlayDevModal());
-        b.disabled = !playable.length || me.devPlayedThisTurn;
+      const key = Assets.playerKey(me.color);
+      const add = (o) => {
+        const b = document.createElement('button');
+        b.className = 'bar-btn' + (o.build ? ' action-build' : '') + (o.ok ? '' : ' broke');
+        if (o.build) b.dataset.build = o.build;
+        b.disabled = !o.ok;
+        b.title = o.title;
+        b.innerHTML = `${o.img ? `<img src="${o.img}" alt="">` : `<span class="bb-emoji">${o.emoji}</span>`}<span class="lbl">${o.label}</span>${o.badge != null ? `<span class="left">${o.badge}</span>` : ''}`;
+        b.onclick = o.on;
         el.appendChild(b);
+      };
+      const costTip = (c) => Object.entries(c).map(([k, v]) => `${v} ${k}`).join(' + ');
+
+      add({ label: 'Trade', emoji: '🤝', title: 'Trade with players', ok: main, on: () => this.openPlayerTradeModal() });
+      add({ label: 'Bank', emoji: '🏦', title: 'Trade with the bank / harbors', ok: main, on: () => this.openBankTradeModal() });
+      if (!s.cnk) {
+        add({ label: 'Dev', img: Assets.url('card_back_development'), badge: s.devDeckCount, title: `Buy a development card (${costTip(COSTS.dev)})`,
+          ok: main && canPay(COSTS.dev) && s.devDeckCount > 0, on: () => Net.send('buy_dev') });
       } else {
-        el.appendChild(btnEl(`📜 Progress (${me.ck.progress.length})`, () => this.openProgressModal()));
-        el.appendChild(btnEl('🛡 Knights', () => this.openKnightMenu()));
-        el.appendChild(btnEl('🏛 Improve', () => this.openImproveMenu()));
+        const alchemy = s.phase === 'roll' && myTurn && !waiting && me.ck.progress.includes('alchemy');
+        add({ label: 'Progress', img: Assets.url('card_back_science'), badge: me.ck.progress.length, title: 'Play a progress card',
+          ok: (main || alchemy) && me.ck.progress.length > 0, on: () => this.openProgressModal() });
       }
-      const over = s.cnk && me.ck.progress.length > 4;
-      const endBtn = btnEl(over ? `Discard to 4 progress cards` : 'End turn', () => over ? this.openProgressModal(true) : Net.send('end_turn'), true, 'primary');
-      el.appendChild(endBtn);
+      const left = { road: C_PIECES.roads - me.roads.length, settlement: C_PIECES.settlements - me.settlements.length, city: C_PIECES.cities - me.cities.length };
+      add({ build: 'road', label: 'Road', img: Assets.url('piece_road_' + key), badge: left.road, title: `Road: ${costTip(COSTS.road)}`,
+        ok: main && left.road > 0 && canPay(COSTS.road), on: () => this.pickRoadBuild() });
+      add({ build: 'settlement', label: 'Settlement', img: Assets.url('piece_settlement_' + key), badge: left.settlement, title: `Settlement: ${costTip(COSTS.settle)}`,
+        ok: main && left.settlement > 0 && canPay(COSTS.settle), on: () => this.pickSettlementBuild() });
+      add({ build: 'city', label: 'City', img: Assets.url('piece_city_' + key), badge: left.city, title: `City: ${costTip(COSTS.city)}`,
+        ok: main && left.city > 0 && me.settlements.length > 0 && canPay(COSTS.city), on: () => this.pickCityBuild() });
+      if (s.cnk) {
+        const kLeft = me.ck.knightSupply ? me.ck.knightSupply[1] : 0;
+        const wLeft = 3 - me.ck.cityWalls.length;
+        add({ build: 'knight', label: 'Knight', img: Assets.url('knight_basic_inactive_' + key), badge: kLeft, title: `Knight: ${costTip(COSTS.knight)}`,
+          ok: main && kLeft > 0 && canPay(COSTS.knight), on: () => this.pickKnightBuild() });
+        add({ build: 'wall', label: 'Wall', img: Assets.url('piece_city_wall_' + key), badge: wLeft, title: `City wall: ${costTip(COSTS.wall)}`,
+          ok: main && wLeft > 0 && canPay(COSTS.wall), on: () => this.pickWallBuild() });
+        add({ label: 'Knights', img: Assets.url('hud_knight_shield'), title: 'Activate, promote or move knights', ok: main, on: () => this.openKnightMenu() });
+        add({ label: 'Improve', emoji: '🏛', title: 'City improvements (your levels: ' + TRACKS.map(t => `${t} ${me.ck.tracks[t]}`).join(', ') + ')',
+          ok: main, on: () => this.openImproveMenu() });
+      }
+
+      if (main) {
+        const over = s.cnk && me.ck.progress.length > 4;
+        end.disabled = false;
+        end.querySelector('.et-lbl').textContent = over ? 'Discard' : 'End Turn';
+        end.onclick = () => over ? this.openProgressModal(true) : Net.send('end_turn');
+      }
+    },
+
+    // During setup the valid spots are shown straight away; the road follows; the turn confirms itself.
+    autoSetupPick() {
+      const st = this.state.setupState || {};
+      const pick = Render.inst && Render.inst.pick;
+      if (st.building == null) { if (!pick) this.pickSettlementSetup(); return; }
+      if (st.road == null) { if (!pick || pick.kind !== 'edge') this.pickRoadSetup(); return; }
+      const k = `${this.state.phase}|${this.state.turn}|${st.building}|${st.road}`;
+      if (this._setupSent !== k) { this._setupSent = k; Net.send('end_setup'); }
     },
 
     renderLog() {
@@ -439,14 +428,7 @@
         const right = tray('tray-comm');
         for (const c of COMM) right.appendChild(slot('c', c));
         right.appendChild(limit);
-        const prog = (this.me.ck && this.me.ck.progress) || [];
-        if (prog.length) {
-          extra = document.createElement('div');
-          extra.className = 'card dev-card';
-          extra.innerHTML = `<span class="icon">📜</span><span class="n">${prog.length}</span><span class="k">progress</span>`;
-          extra.title = prog.map(pretty).join(', ');
-          extra.onclick = () => this.openProgressModal();
-        }
+        // Progress cards live behind the Progress button in the bar.
       } else {
         left.appendChild(limit);
         const cards = [...(this.me.devCards || []), ...(this.me.newDevCards || [])];
@@ -454,7 +436,8 @@
           extra = document.createElement('div');
           extra.className = 'card dev-card';
           extra.innerHTML = `<span class="icon">${Icons.dev}</span><span class="n">${cards.length}</span><span class="k">dev</span>`;
-          extra.title = cards.map(pretty).join(', ');
+          extra.title = cards.map(pretty).join(', ') + ' — tap to play';
+          extra.onclick = () => this.openPlayDevModal();
         }
       }
       if (extra) el.appendChild(extra);
@@ -687,7 +670,7 @@
 
     // ---------------- picker flows ----------------
     pickSettlementSetup() {
-      banner(`Pick an intersection for your ${this.state.cnk && this.state.phase === 'setup_2' ? 'city' : 'settlement'}`);
+      banner(`Tap a spot for your ${this.state.cnk && this.state.phase === 'setup_2' ? 'city' : 'settlement'}`);
       Render.inst.startPick('vertex', (v) => this.canPlaceBuilding(v.id), (vId) => {
         Net.send('place_settlement', { vertexId: vId, setup: true });
         banner('');
@@ -695,7 +678,7 @@
     },
     pickRoadSetup() {
       const b = this.state.setupState.building;
-      banner('Pick an edge next to your new building');
+      banner('Tap an edge for your road');
       Render.inst.startPick('edge', (e) => !this.edgeTaken(e.id) && (e.a === b || e.b === b), (eId) => {
         Net.send('place_road', { edgeId: eId, setup: true });
         banner('');
@@ -1379,19 +1362,6 @@
     if (cls) b.className = cls;
     return b;
   }
-  function actionBtn(label, icon, cost, onClick, affordable) {
-    const b = document.createElement('button');
-    b.className = 'action-build' + (affordable ? '' : ' broke');
-    b.onclick = onClick;
-    const costHtml = Object.entries(cost)
-      .map(([k, v]) => `<span class="cost ${k}">${v}${Icons[k]}</span>`).join('');
-    b.innerHTML = `
-      <span class="ab-label">${icon}${label}</span>
-      <span class="ab-cost">${costHtml}</span>
-    `;
-    b.title = Object.entries(cost).map(([k, v]) => `${v} ${k}`).join(' + ');
-    return b;
-  }
   function esc(s) { return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function isLight(hex) {
     const n = parseInt(hex.slice(1), 16);
@@ -1442,6 +1412,7 @@
       if (Render.inst) Render.inst.cancelPick();
       if (UI._pickPrompt) { UI._promptOpen = null; UI._pickPrompt = null; }
       banner('');
+      setTimeout(() => UI.state && UI.renderActions(), 0); // setup spots come straight back
     };
   }
   function bannerWithSkip(msg, onSkip, label = 'Skip') {
