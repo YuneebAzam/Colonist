@@ -40,6 +40,7 @@
       const screen = document.getElementById('screen-game');
       screen.dataset.mode = state.cnk ? 'cnk' : 'base';
       screen.classList.toggle('is-host', state.hostId === Net.playerId);
+      this.renderPause();
       // Cancel stale pickers when it's no longer our move
       if (Render.inst && Render.inst.pick && !this.pickStillValid()) {
         Render.inst.cancelPick();
@@ -453,6 +454,34 @@
       }
       if (extra) el.appendChild(extra);
       if (!this._prevHand) this._prevHand = JSON.parse(JSON.stringify(this.me.hand));
+    },
+
+    // ---------------- Pause (host-only control; everyone sees the banner) ----------------
+    renderPause() {
+      const s = this.state;
+      const btn = document.getElementById('pauseBtn');
+      btn.textContent = s.paused ? '▶' : '⏸';
+      btn.title = s.paused ? 'Resume the game' : 'Pause the game';
+      let b = document.getElementById('pausedBanner');
+      if (s.paused && !b) {
+        b = document.createElement('div');
+        b.id = 'pausedBanner'; b.className = 'paused-banner';
+        b.textContent = '⏸ Game paused by the host';
+        document.getElementById('boardWrap').appendChild(b);
+      }
+      if (!s.paused && b) b.remove();
+    },
+
+    confirmReset() {
+      openModal(`
+        <h3>Reset this game?</h3>
+        <p class="sec-hint" style="font-size:13px">Everyone goes back to the lobby. This game's board, hands and points are lost.</p>
+        <div class="row" style="justify-content:flex-end;gap:8px;margin-top:14px">
+          <button class="chip" id="rsCancel">Cancel</button>
+          <button class="chip on danger" id="rsConfirm">Reset game</button>
+        </div>`);
+      document.getElementById('rsCancel').onclick = closeModal;
+      document.getElementById('rsConfirm').onclick = () => { closeModal(); Net.send('restart'); };
     },
 
     // ---------------- Barbarian / robber / metropolis banner (C&K) ----------------

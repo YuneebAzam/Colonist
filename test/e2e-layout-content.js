@@ -50,5 +50,21 @@ module.exports = async ({ host, phone, MODE, assert, ok, waitFor }) => {
   const pf = await facts(phone);
   assert.strictEqual(pf.rosterCards, 3, 'phone roster');
   assert.strictEqual(pf.diceImgs.length, MODE === 'cnk' ? 3 : 2, 'phone dice');
+  // Pause / Reset in the match bar (host only)
+  const vis = (page, sel) => page.evaluate((sel) => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; }, sel);
+  assert(await vis(host, '#pauseBtn') && await vis(host, '#resetBtn'), 'host sees pause + reset');
+  assert(!(await vis(phone, '#pauseBtn')) && !(await vis(phone, '#resetBtn')), 'guest does not');
+  await host.locator('#pauseBtn').click();
+  await waitFor(() => phone.evaluate(() => UI.state.paused));
+  await waitFor(() => vis(phone, '#pausedBanner'));
+  assert.strictEqual((await host.locator('#pauseBtn').textContent()).trim(), '▶', 'pause button flips to resume');
+  await host.locator('#pauseBtn').click();
+  await waitFor(async () => !(await vis(phone, '#pausedBanner')));
+  await host.locator('#resetBtn').click();
+  await waitFor(() => vis(host, '#modal:not(.hidden) #rsConfirm'));
+  await host.locator('#modal #rsCancel').click();
+  assert.notStrictEqual(await host.evaluate(() => UI.state.phase), 'lobby', 'cancel keeps the game');
+  ok('match bar: host pause shows a paused banner to guests, resume clears it; reset asks first');
+
   ok(`HUD content (${MODE}): roster badges, ${f.trays} dock tray(s) + limit ${f.limit}, ${f.diceImgs.length} dice${MODE === 'cnk' ? ', barbarian track + robber + metropolis chips' : ''}`);
 };

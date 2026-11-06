@@ -272,3 +272,13 @@
   .dock .hand-limit { padding: 4px 6px; font-size: 11px; }
   .hud-screen .dice img.die { width: 40px; height: 40px; }
 }
+
+/* Paused overlay (everyone) */
+.paused-banner {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 8;
+  padding: 14px 24px; border-radius: 14px; font-weight: 900; font-size: 18px;
+  background: var(--bg-hud-primary); color: var(--status-warning);
+  border: 2px solid var(--status-warning); box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+  pointer-events: none;
+}
+.hud-screen .chip.danger { background: var(--status-danger); color: #fff; }

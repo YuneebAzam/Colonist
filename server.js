@@ -46,6 +46,7 @@ function broadcast(room) {
     const state = room.game.snapshot(pid);
     state.hostId = room.hostId;
     state.deadline = room.deadline;
+    state.paused = !!room.paused;
     state.serverNow = Date.now();
     send(ws, { type: 'state', state });
   }
@@ -56,6 +57,7 @@ function scheduleTimer(room) {
   const g = room.game;
   const secs = g.settings.turnTimer;
   const running = secs > 0 && !['lobby', 'end'].includes(g.phase);
+  if (room.paused) { clearTimeout(room.timer); room.timer = null; room.deadline = null; return; }
   if (!running) {
     clearTimeout(room.timer); room.timer = null; room.deadline = null; room.timerKey = null;
     return;
@@ -64,7 +66,9 @@ function scheduleTimer(room) {
   if (key === room.timerKey && room.timer) return;
   room.timerKey = key;
   clearTimeout(room.timer);
-  const ms = secs * 1000 * TIMER_SCALE;
+  // After a resume, finish the interrupted wait instead of starting a fresh one.
+  const ms = room.resumeMs != null ? room.resumeMs : secs * 1000 * TIMER_SCALE;
+  room.resumeMs = null;
   room.deadline = Date.now() + ms;
   room.timer = setTimeout(() => {
     room.timer = null;
@@ -234,6 +238,26 @@ function handle(ws, msg) {
       broadcast(room);
       break;
     }
+    case 'pause':
+    case 'resume': {
+      // Host-only: freeze the game (turn timer stopped, game actions refused) and pick it back up.
+      const { room, pid } = requireRoom(ws);
+      if (room.hostId !== pid) throw new Error('only the host can pause or resume');
+      if (['lobby', 'end'].includes(room.game.phase)) throw new Error('the game is not running');
+      if (msg.type === 'pause') {
+        if (room.paused) return;
+        room.paused = { remainingMs: room.deadline ? Math.max(0, room.deadline - Date.now()) : null };
+        room.game.pushLog(`${room.game.getPlayer(pid).name} paused the game`);
+      } else {
+        if (!room.paused) return;
+        room.resumeMs = room.paused.remainingMs;
+        room.paused = null;
+        room.timer = null;
+        room.game.pushLog(`${room.game.getPlayer(pid).name} resumed the game`);
+      }
+      broadcast(room);
+      break;
+    }
     case 'start_game': {
       const { room, pid } = requireRoom(ws);
       if (room.hostId !== pid) throw new Error('only the host can start');
@@ -248,6 +272,7 @@ function handle(ws, msg) {
       const players = room.game.players.filter(p => room.sockets.has(p.id)).map(p => ({ id: p.id, name: p.name }));
       for (const [t, id] of room.tokens) if (!players.some(p => p.id === id)) room.tokens.delete(t);
       room.game = makeGame(room.game.settings, players);
+      room.paused = null; room.resumeMs = null;
       for (const p of room.game.players) p.connected = true;
       room.game.pushLog('new game — host can adjust settings and start');
       broadcast(room);
@@ -266,6 +291,7 @@ function handle(ws, msg) {
     default: {
       // Game action. The acting player is always the socket's bound player.
       const { room, pid } = requireRoom(ws);
+      if (room.paused) throw new Error('game is paused');
       room.game.act(pid, msg.type, msg);
       broadcast(room);
     }

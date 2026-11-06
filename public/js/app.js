@@ -223,6 +223,8 @@
   };
 
   document.getElementById('historyBtn').onclick = () => UI.openHistoryModal();
+  document.getElementById('pauseBtn').onclick = () => Net.send(UI.state && UI.state.paused ? 'resume' : 'pause');
+  document.getElementById('resetBtn').onclick = () => UI.confirmReset();
 
   // Log / Chat tabs, and the drawer toggle used on narrow screens
   const logChat = document.getElementById('logChat');

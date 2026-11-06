@@ -132,6 +132,46 @@ const isErr = m => m.type === 'error';
   await host.next(m => isState(m) && m.state.turnNumber >= 2);   // auto-rolled, then auto-ended
   step('turn timer auto-places setup, auto-rolls and auto-ends idle turns');
 
+  // ---- Pause / resume (host only), timer frozen while paused, remaining time restored
+  eve.send('pause');
+  assert.match((await eve.next(isErr)).message, /only the host can pause/);
+  step('pause: non-host rejected');
+
+  await host.next(isState);
+  host.send('pause');
+  const paused = await host.next(m => isState(m) && m.state.paused);
+  assert.strictEqual(paused.state.deadline, null, 'no deadline while paused');
+  const room = rooms.get('TEST1');
+  const remaining = room.paused.remainingMs;
+  assert.ok(remaining > 0 && remaining <= 300 + 5, `remaining ${remaining}ms of a 300ms turn`);
+  const curC = [host, bob2, eve].find(c => c.joined.playerId === paused.state.currentPlayerId);
+  curC.send(paused.state.phase === 'roll' ? 'roll' : 'end_turn');
+  assert.match((await curC.next(isErr)).message, /game is paused/);
+  step('pause: deadline cleared, game actions rejected while paused');
+
+  const frozen = { turn: room.game.turnNumber, phase: room.game.phase };
+  await new Promise(r => setTimeout(r, 1000)); // > 3x the scaled 300ms timer
+  assert.deepStrictEqual({ turn: room.game.turnNumber, phase: room.game.phase }, frozen, 'timer did not act while paused');
+  host.send('chat', { text: 'still here' });
+  await host.next(m => m.type === 'chat');
+  step('pause: turn timer frozen; chat still works');
+
+  host.send('resume');
+  const resumed = await host.next(m => isState(m) && !m.state.paused);
+  assert.ok(resumed.state.deadline, 'deadline back after resume');
+  assert.ok(resumed.state.deadline - resumed.state.serverNow <= remaining + 50,
+    `resume restores the remaining ${remaining}ms, not a fresh timer (${resumed.state.deadline - resumed.state.serverNow}ms)`);
+  step('resume: remaining turn time restored');
+
+  host.send('pause');
+  await host.next(m => isState(m) && m.state.paused);
+  host.send('restart');
+  const fresh = await host.next(m => isState(m) && m.state.phase === 'lobby');
+  assert.ok(!fresh.state.paused && !rooms.get('TEST1').paused, 'restart clears pause');
+  host.send('pause');
+  assert.match((await host.next(isErr)).message, /not running/);
+  step('restart clears pause; cannot pause in the lobby');
+
   console.log(`\n${ok} server tests passed`);
   process.exit(0);
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
