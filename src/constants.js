@@ -58,7 +58,7 @@ const PROGRESS_DECKS = {
 const PROGRESS_VP_CARDS = ['printing', 'constitution'];
 
 // Distinct, colonist-style player colors (red, blue, orange, white, green, brown).
-const COLORS = ['#E53935', '#1E6FD9', '#FB8C00', '#F5F5F5', '#2E9D47', '#7B4A2E'];
+const COLORS = ['#E53935', '#00B0FF', '#FB8C00', '#ECEFF1', '#2E9D47', '#7B4A2E'];
 
 // Game settings (host-configurable). Defaults per rulebook.
 const SETTINGS_LIMITS = {
