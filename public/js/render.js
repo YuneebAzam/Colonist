@@ -94,24 +94,28 @@
         minY = Math.min(minY, h.y); maxY = Math.max(maxY, h.y);
       }
       const spanX = (maxX - minX) + 2.5, spanY = (maxY - minY) + 2.5;
-      const pad = this.W < 500 ? 16 : 60;
-      // keep the board clear of the hand of cards at the bottom
-      const hud = document.getElementById('hud');
-      const bottom = hud ? Math.min(hud.offsetHeight, this.H * 0.35) : 0;
-      const availH = this.H - bottom;
-      const sx = (this.W - pad * 2) / spanX, sy = (availH - pad * 2) / spanY;
+      const pad = this.W < 500 ? 8 : 24;
+      // keep the board clear of the HUD regions around the edges
+      const ins = hudInsets(this.W, this.H);
+      const availW = this.W - ins.left - ins.right, availH = this.H - ins.top - ins.bottom;
+      const sx = (availW - pad * 2) / spanX, sy = (availH - pad * 2) / spanY;
       this.scale = Math.max(this.minScale, Math.min(sx, sy));
       this.offset = {
-        x: this.W / 2 - ((minX + maxX) / 2) * this.scale,
-        y: availH / 2 - ((minY + maxY) / 2) * this.scale,
+        x: ins.left + availW / 2 - ((minX + maxX) / 2) * this.scale,
+        y: ins.top + availH / 2 - ((minY + maxY) / 2) * this.scale,
       };
     }
 
     setState(state) {
       const first = !this.state;
+      const layoutKey = state.phase === 'lobby' ? 'lobby' : 'game';
+      const relayout = first || layoutKey !== this._layoutKey;
+      this._layoutKey = layoutKey;
       this.state = state;
       if (first) this.fit();
       this.draw();
+      // HUD regions are filled after the board state arrives; fit again once they have their size.
+      if (relayout) requestAnimationFrame(() => { this.fit(); this.draw(); });
     }
 
     toScreen(x, y) {
@@ -446,6 +450,29 @@
       this.draw();
     }
     cancelPick() { this.pick = null; this.hover = null; this.canvas.classList.remove('clickable'); this.draw(); }
+  }
+
+  // Space taken by the HUD regions on each side of the viewport. A region bigger than 40% of the
+  // viewport along an axis is ignored on that axis so the board never collapses.
+  function hudInsets(W, H) {
+    const ins = { top: 0, right: 0, bottom: 0, left: 0 };
+    const regions = ['matchHeader', 'zoomCtl', 'barbarianHud', 'players', 'logChat', 'hud', 'turnCluster'];
+    for (const id of regions) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || getComputedStyle(el).display === 'none') continue;
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const wide = r.width > W * 0.4, tall = r.height > H * 0.4;
+      if (tall && wide) continue;
+      if (wide || (!tall && Math.abs(cy - H / 2) / H > Math.abs(cx - W / 2) / W)) {
+        if (tall) continue;
+        if (cy < H / 2) ins.top = Math.max(ins.top, r.bottom); else ins.bottom = Math.max(ins.bottom, H - r.top);
+      } else {
+        if (cx < W / 2) ins.left = Math.max(ins.left, r.right); else ins.right = Math.max(ins.right, W - r.left);
+      }
+    }
+    return ins;
   }
 
   // ============ Draw helpers ============

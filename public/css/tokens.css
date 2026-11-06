@@ -1,0 +1,85 @@
+/* Dark Neo-Minimalist HUD design tokens (redesign spec §1), plus green/brown player colours (plan D2). */
+:root {
+  /* HUD Surfaces */
+  --bg-hud-primary: #141414;
+  --bg-hud-elevated: #1E1E24;
+  --bg-hud-panel: #25262E;
+  --border-hud-subtle: #2E303A;
+
+  /* Interactive & Status Accents */
+  --accent-electric: #00E5FF;
+  --accent-electric-dim: #0088A3;
+  --status-danger: #E53935;
+  --status-warning: #FFB300;
+  --status-success: #4CE08A;
+
+  /* Ocean Canvas Gradient */
+  --ocean-inner: #1B4F72;
+  --ocean-outer: #0F2942;
+
+  /* Cities & Knights Discipline Tracks */
+  --track-trade: #FFD166;
+  --track-politics: #00E5FF;
+  --track-science: #4CE08A;
+
+  /* Resource Semantic Colors */
+  --res-wood-top: #2D6A3E;
+  --res-wood-bot: #184225;
+  --res-wood-accent: #68B678;
+
+  --res-brick-top: #C85232;
+  --res-brick-bot: #8A2F19;
+  --res-brick-accent: #E88364;
+
+  --res-sheep-top: #7CB342;
+  --res-sheep-bot: #4B7C1D;
+  --res-sheep-accent: #AED581;
+
+  --res-wheat-top: #E5A922;
+  --res-wheat-bot: #AD740B;
+  --res-wheat-accent: #FFD54F;
+
+  --res-ore-top: #64707D;
+  --res-ore-bot: #3B434C;
+  --res-ore-accent: #98A6B5;
+
+  --res-desert-top: #D9B36C;
+  --res-desert-bot: #A37B37;
+  --res-desert-accent: #F2D7A0;
+
+  /* Commodities */
+  --comm-paper: #29BB89;
+  --comm-cloth: #F7B733;
+  --comm-coin: #00E5FF;
+
+  /* Number Tokens */
+  --chit-surface: #FAF6EC;
+  --chit-rim: #F5EFE0;
+  --chit-text-standard: #141414;
+  --chit-text-hot: #E53935;
+
+  /* Player Piece Colors */
+  --player-red-fill: #E53935;
+  --player-red-shade: #8E1B18;
+  --player-red-spec: #FF8A80;
+
+  --player-blue-fill: #00B0FF;
+  --player-blue-shade: #005B8F;
+  --player-blue-spec: #80D8FF;
+
+  --player-orange-fill: #FB8C00;
+  --player-orange-shade: #9E5100;
+  --player-orange-spec: #FFD180;
+
+  --player-white-fill: #ECEFF1;
+  --player-white-shade: #78909C;
+  --player-white-spec: #FFFFFF;
+
+  --player-green-fill: #2E9D47;
+  --player-green-shade: #1B5E2B;
+  --player-green-spec: #81C784;
+
+  --player-brown-fill: #7B4A2E;
+  --player-brown-shade: #4A2C1B;
+  --player-brown-spec: #BCAAA4;
+}

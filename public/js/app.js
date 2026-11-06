@@ -12,7 +12,6 @@
     try { localStorage.setItem('catan.theme', next); } catch {}
   }
   document.getElementById('themeToggle').onclick = toggleTheme;
-  document.getElementById('themeToggle2').onclick = toggleTheme;
 
   // Populate maps + modes
   const [maps, modes] = await Promise.all([
@@ -224,6 +223,17 @@
   };
 
   document.getElementById('historyBtn').onclick = () => UI.openHistoryModal();
+
+  // Log / Chat tabs, and the drawer toggle used on narrow screens
+  const logChat = document.getElementById('logChat');
+  logChat.querySelectorAll('.lc-tab[data-pane]').forEach(tab => {
+    tab.onclick = () => {
+      logChat.querySelectorAll('.lc-tab[data-pane]').forEach(t => t.classList.toggle('on', t === tab));
+      logChat.querySelectorAll('.lc-pane').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== tab.dataset.pane));
+      if (tab.dataset.pane === 'chat') document.getElementById('chatInput').focus();
+    };
+  });
+  document.getElementById('chatToggle').onclick = () => logChat.classList.toggle('open');
 
   document.getElementById('chatInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.value.trim()) {

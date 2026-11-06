@@ -8,7 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/hud.css">
 </head>
 <body>
 
@@ -114,42 +116,59 @@
   </section>
 
   <!-- GAME SCREEN -->
-  <section id="screen-game" class="screen hidden">
-    <aside id="sidebar" class="sidebar">
-      <div class="room-info">
-        <strong id="roomCode">—</strong>
-        <button id="rulesBtn2" class="icon-btn" title="Rules">📖</button>
-        <button id="historyBtn" class="icon-btn" title="Trade history">⟳</button>
-        <button id="copyLink" class="icon-btn" title="Copy join link">⧉</button>
-        <button id="themeToggle2" class="icon-btn" title="Toggle theme">◐</button>
-      </div>
-      <div id="players" class="players"></div>
-      <div id="turnInfo" class="turn-info"></div>
-      <div id="dice" class="dice"></div>
-      <div id="ckPanel" class="ck-panel hidden"></div>
-      <div id="actionButtons" class="action-buttons"></div>
-      <div id="log" class="log"></div>
-      <div id="chatBox" class="chat">
-        <div id="chatLog" class="chat-log"></div>
-        <input id="chatInput" placeholder="Say something…" maxlength="200">
-      </div>
-    </aside>
-
+  <section id="screen-game" class="screen hud-screen hidden" data-mode="base">
     <main id="boardWrap" class="board-wrap">
       <canvas id="board"></canvas>
       <div id="banner" class="banner hidden"></div>
       <div id="hexTip" class="hex-tip hidden"></div>
       <div id="floats" class="floats"></div>
-      <div class="zoom-controls">
-        <button id="zoomIn"  title="Zoom in">+</button>
-        <button id="zoomOut" title="Zoom out">−</button>
-        <button id="zoomFit" title="Fit to screen">⤢</button>
-      </div>
       <div id="lobbyPanel" class="lobby-panel hidden"></div>
-      <div id="hud" class="hud">
-        <div id="hand" class="hand"></div>
-      </div>
     </main>
+
+    <!-- Perimeter HUD: every region floats over the board -->
+    <header id="matchHeader" class="hud-pill match-header">
+      <strong id="roomCode">—</strong>
+      <button id="pauseBtn" class="icon-btn hud-host-only" title="Pause the game">⏸</button>
+      <button id="resetBtn" class="icon-btn hud-host-only" title="Reset to the lobby">↺</button>
+      <button id="copyLink" class="icon-btn" title="Copy join link">⧉</button>
+      <button id="rulesBtn2" class="icon-btn" title="Rules">📖</button>
+      <button id="chatToggle" class="icon-btn chat-toggle" title="Log &amp; chat">💬</button>
+    </header>
+
+    <div id="zoomCtl" class="hud-pill zoom-controls">
+      <button id="zoomIn"  title="Zoom in">+</button>
+      <button id="zoomOut" title="Zoom out">−</button>
+      <button id="zoomFit" title="Fit to screen">⤢</button>
+    </div>
+
+    <div id="barbarianHud" class="barbarian-hud ck-only"></div>
+
+    <aside id="players" class="players roster"></aside>
+
+    <section id="logChat" class="log-chat">
+      <div class="lc-tabs">
+        <button class="lc-tab on" data-pane="log">Log</button>
+        <button class="lc-tab" data-pane="chat">Chat</button>
+        <button id="historyBtn" class="lc-tab" title="Trade history">Trades</button>
+      </div>
+      <div id="log" class="log lc-pane" data-pane="log"></div>
+      <div id="chatBox" class="chat lc-pane hidden" data-pane="chat">
+        <div id="chatLog" class="chat-log"></div>
+        <input id="chatInput" placeholder="Say something…" maxlength="200">
+      </div>
+    </section>
+
+    <div id="hud" class="hud dock">
+      <div id="hand" class="hand"></div>
+    </div>
+
+    <section id="turnCluster" class="turn-cluster">
+      <div id="turnInfo" class="turn-info"></div>
+      <div id="dice" class="dice"></div>
+      <div id="primarySlot" class="primary-slot"></div>
+      <div id="actionButtons" class="action-buttons"></div>
+      <div id="ckPanel" class="ck-panel hidden"></div>
+    </section>
 
     <div id="modal" class="modal hidden">
       <div class="modal-body" id="modalBody"></div>

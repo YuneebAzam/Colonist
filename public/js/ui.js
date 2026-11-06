@@ -37,6 +37,9 @@
       this.state = state;
       this.me = state.players.find(p => p.id === Net.playerId);
       this.serverOffset = state.serverNow ? state.serverNow - Date.now() : 0;
+      const screen = document.getElementById('screen-game');
+      screen.dataset.mode = state.cnk ? 'cnk' : 'base';
+      screen.classList.toggle('is-host', state.hostId === Net.playerId);
       // Cancel stale pickers when it's no longer our move
       if (Render.inst && Render.inst.pick && !this.pickStillValid()) {
         Render.inst.cancelPick();
@@ -313,7 +316,7 @@
       if (!btn) {
         btn = document.createElement('button');
         btn.id = 'primaryAction'; btn.className = 'primary-float';
-        document.getElementById('boardWrap').appendChild(btn);
+        document.getElementById('primarySlot').appendChild(btn);
       }
       const s = this.state, me = this.me;
       const mine = s.currentPlayerId === Net.playerId && !s.busy && !this.myPrompts().length;
