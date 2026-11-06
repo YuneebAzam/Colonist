@@ -519,7 +519,10 @@
       switch (pr.kind) {
         case 'discard':
           return this.selectCardsModal({
-            title: pr.reason === 'sabotage' ? `Sabotage! Discard ${pr.count}` : `Discard ${pr.count} cards`,
+            title: pr.reason === 'sabotage' ? 'Sabotage!' : 'Discard Cards',
+            message: pr.reason === 'sabotage'
+              ? `You have at least as many points as the saboteur. Discard ${pr.count} of your ${me.handCount} cards.`
+              : `7 was rolled! You have ${me.handCount} cards, more than your limit of ${me.handLimit}. Discard ${pr.count} of them.`,
             count: pr.count, hand: me.hand, keys: s.cnk ? [...RES, ...COMM] : RES,
             onDone: (cards) => answer({ cards }), onCancel: dismiss,
           });
@@ -737,36 +740,56 @@
     },
 
     // ---------------- modals ----------------
-    selectCardsModal({ title, count, hand, keys, onDone, onCancel }) {
+    // Card picker: your cards (only the kinds you hold) sit at the bottom as stacks; tap one to move a
+    // card up to the pile, tap a card in the pile to put it back; ✓ confirms once the count is right.
+    selectCardsModal({ title, message = '', count, hand, keys, onDone, onCancel }) {
       const picks = {};
       for (const k of keys) picks[k] = 0;
       const have = (k) => RES.includes(k) ? (hand.r[k] || 0) : (hand.c[k] || 0);
+      const card = (k) => `<img src="${Assets.url('card_' + k)}" alt="${k}" draggable="false">`;
       const render = () => {
         const used = Object.values(picks).reduce((a, b) => a + b, 0);
+        const pile = keys.flatMap(k => Array(picks[k]).fill(k));
+        const stacks = keys.filter(k => have(k) > 0).map(k => {
+          const left = have(k) - picks[k];
+          const shown = Math.max(1, Math.min(left, 6));
+          return `<button class="cp-stack${left ? '' : ' empty'}" data-k="${k}" ${left && used < count ? '' : 'disabled'} title="${left} ${k}">
+            <span class="cp-fan" style="--n:${shown}">${Array(shown).fill(card(k)).join('')}</span>
+            <span class="cp-count">${left}</span></button>`;
+        }).join('');
         openModal(`
-          <h3>${esc(title)} <span style="color:var(--fg-mute);font-size:13px">(${used}/${count})</span></h3>
-          <div class="row">${keys.map(k => `
-            <div class="counter-chip-ui ${have(k) ? '' : 'zero'}">
-              <span class="icon">${Icons[k]}</span>
-              <span class="rbtn" data-op="-" data-k="${k}">−</span>
-              <span class="rnum">${picks[k]}</span>
-              <span class="rbtn" data-op="+" data-k="${k}">+</span>
-              <span class="rhave">/ ${have(k)}</span>
-            </div>`).join('')}</div>
-          <div class="row" style="justify-content:flex-end;margin-top:20px">
-            <button class="chip ghost" id="scLater">Later</button>
-            <button class="chip on" id="scOk" ${used !== count ? 'disabled' : ''}>Confirm</button>
+          <div class="cardpick">
+            <div class="cp-head">
+              <img class="cp-badge" src="${Assets.url('card_back_resource')}" alt="">
+              <div><h3 class="cp-title">${esc(title)} <span>(${used}/${count})</span></h3>
+                ${message ? `<p class="cp-msg">${esc(message)}</p>` : ''}</div>
+            </div>
+            <div class="cp-pile">${pile.length
+              ? pile.map(k => `<button class="cp-card" data-k="${k}" title="Put back">${card(k)}</button>`).join('')
+              : '<span class="cp-hint">Tap your cards below to pick them</span>'}</div>
+            <div class="cp-foot">
+              <button class="chip ghost" id="scLater">Later</button>
+              <button class="cp-ok" id="scOk" title="Confirm" ${used !== count ? 'disabled' : ''}>✓</button>
+            </div>
+            <div class="cp-hand">${stacks || '<span class="cp-hint">No cards</span>'}</div>
           </div>`);
-        onModalClose(onCancel);
-        document.querySelectorAll('[data-op]').forEach(b => b.onclick = (e) => {
+        document.getElementById('modal').classList.add('modal-cardpick');
+        onModalClose(() => { document.getElementById('modal').classList.remove('modal-cardpick'); if (onCancel) onCancel(); });
+        document.querySelectorAll('#modal .cp-stack').forEach(b => b.onclick = (e) => {
           e.stopPropagation();
           const k = b.dataset.k;
-          if (b.dataset.op === '+') { if (picks[k] < have(k) && used < count) picks[k]++; }
-          else if (picks[k] > 0) picks[k]--;
-          render();
+          if (picks[k] < have(k) && used < count) { picks[k]++; render(); }
+        });
+        document.querySelectorAll('#modal .cp-card').forEach(b => b.onclick = (e) => {
+          e.stopPropagation();
+          const k = b.dataset.k;
+          if (picks[k] > 0) { picks[k]--; render(); }
         });
         document.getElementById('scLater').onclick = () => { closeModal(); };
-        document.getElementById('scOk').onclick = () => { onDone(strip(picks)); closeModal(); };
+        document.getElementById('scOk').onclick = () => {
+          document.getElementById('modal').classList.remove('modal-cardpick');
+          onDone(strip(picks)); closeModalSilently();
+        };
       };
       render();
     },
@@ -1388,6 +1411,7 @@
   let modalCloseCb = null;
   function openModal(html) {
     const m = document.getElementById('modal');
+    m.classList.remove('modal-cardpick');
     document.getElementById('modalBody').innerHTML = html;
     m.classList.remove('hidden');
     modalCloseCb = null;

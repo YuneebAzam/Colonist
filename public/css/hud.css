@@ -331,3 +331,50 @@
   pointer-events: none;
 }
 .hud-screen .chip.danger { background: var(--status-danger); color: #fff; }
+
+/* ---- Card picker (discard / give / take): pile on top, your cards underneath */
+#modal.modal-cardpick .modal-body { width: min(640px, calc(100vw - 24px)); padding: 0; overflow: hidden; }
+.cardpick { display: flex; flex-direction: column; }
+.cp-head { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px 10px; }
+.cp-badge { width: 52px; height: 72px; border-radius: 6px; flex: 0 0 auto; box-shadow: 0 4px 10px rgba(0, 0, 0, .4); }
+.cp-title { margin: 2px 0 4px; font-size: 20px; color: var(--status-danger); }
+.cp-title span { color: var(--fg-dim); font-size: 16px; }
+.cp-msg { margin: 0; font-size: 14px; line-height: 1.4; color: var(--fg); font-weight: 600; }
+.cp-pile {
+  min-height: 130px; margin: 4px 18px 0; padding: 12px; border-radius: 12px;
+  background: var(--bg-hud-panel); border: 1px dashed var(--border-hud-subtle);
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+}
+.cp-hint { color: var(--fg-mute); font-size: 13px; font-weight: 700; }
+.cp-card { padding: 0; border: 0; background: none; cursor: pointer; transition: transform .12s; }
+.cp-card img { width: 72px; height: 100px; display: block; border-radius: 6px; box-shadow: 0 3px 8px rgba(0, 0, 0, .45); }
+.cp-card:hover { transform: translateY(-4px) rotate(-2deg); }
+.cp-foot { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 10px 18px 12px; }
+.cp-ok {
+  width: 54px; height: 46px; border-radius: 10px; border: 0; cursor: pointer; font-size: 24px; font-weight: 900;
+  background: var(--status-success); color: var(--bg-hud-primary); box-shadow: 0 3px 0 #2E9D60;
+}
+.cp-ok:disabled { background: var(--bg-hud-panel); color: var(--fg-mute); box-shadow: none; cursor: not-allowed; }
+.cp-hand {
+  display: flex; gap: 14px; align-items: flex-end; overflow-x: auto;
+  padding: 14px 18px 16px; background: var(--bg-hud-primary); border-top: 1px solid var(--border-hud-subtle);
+}
+.cp-stack { position: relative; flex: 0 0 auto; padding: 0; border: 0; background: none; cursor: pointer; transition: transform .12s; }
+.cp-stack:not(:disabled):hover { transform: translateY(-6px); }
+.cp-stack:disabled { cursor: default; }
+.cp-stack.empty { opacity: .3; }
+.cp-fan { display: flex; }
+.cp-fan img { width: 72px; height: 100px; border-radius: 6px; box-shadow: 0 3px 8px rgba(0, 0, 0, .45); }
+.cp-fan img + img { margin-left: -60px; }
+.cp-count {
+  position: absolute; top: -8px; right: -8px; min-width: 24px; height: 24px; padding: 0 6px;
+  display: grid; place-items: center; border-radius: 12px; font-size: 13px; font-weight: 900;
+  background: var(--accent-electric); color: var(--bg-hud-primary); border: 2px solid var(--bg-hud-primary);
+}
+@media (max-width: 700px) {
+  .cp-card img, .cp-fan img { width: 52px; height: 72px; }
+  .cp-fan img + img { margin-left: -42px; }
+  .cp-pile { min-height: 90px; }
+  .cp-title { font-size: 17px; }
+  .cp-msg { font-size: 13px; }
+}

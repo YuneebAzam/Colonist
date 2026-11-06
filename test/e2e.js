@@ -62,10 +62,24 @@ async function resolvePrompts(pages) {
       const picking = await page.evaluate(() => !!Render.inst.pick);
       if (!modalOpen && !picking) { await page.locator('#turnStatus').click(); await sleep(80); }
       if (pr.kind === 'discard' || pr.kind === 'give' || pr.kind === 'take_cards') {
+        // Card picker: only cards you hold are shown; tap a stack to move one card to the pile.
+        const shown = await page.evaluate(() => [...document.querySelectorAll('#modal .cp-hand .cp-stack')].map(e => e.dataset.k));
+        if (pr.kind === 'discard') {
+          const h = await page.evaluate(() => UI.me.hand);
+          const held = Object.entries({ ...h.r, ...h.c }).filter(([, n]) => n > 0).map(([k]) => k);
+          assert.deepStrictEqual(shown.slice().sort(), held.sort(), 'discard shows exactly the cards you hold');
+          assert(await page.locator('#modal .cp-hand .cp-stack img').first().isVisible(), 'cards shown with their art');
+        }
         for (let i = 0; i < pr.count; i++) {
-          const idx = await page.evaluate(() => [...document.querySelectorAll('#modal .counter-chip-ui')]
-            .findIndex(c => +c.querySelector('.rnum').textContent < +c.querySelector('.rhave').textContent.replace('/', '')));
-          await page.locator('#modal .counter-chip-ui .rbtn[data-op="+"]').nth(idx).click();
+          await page.locator('#modal .cp-hand .cp-stack:not([disabled])').first().click();
+        }
+        assert.strictEqual(await page.locator('#modal .cp-pile .cp-card').count(), pr.count, 'picked cards land in the pile');
+        if (pr.kind === 'discard' && !global.__pileShot) { global.__pileShot = 1; await shot(page, '05b-discard-picked'); }
+        if (pr.count > 0) {
+          await page.locator('#modal .cp-pile .cp-card').first().click();          // tap a picked card: it goes back
+          assert.strictEqual(await page.locator('#modal .cp-pile .cp-card').count(), pr.count - 1, 'tap returns a card');
+          assert(await page.locator('#scOk').isDisabled(), 'confirm waits for the full count');
+          await page.locator('#modal .cp-hand .cp-stack:not([disabled])').first().click();
         }
         await page.locator('#scOk').click();
       } else if (['robber', 'move_knight', 'treason_remove', 'free_road'].includes(pr.kind)) {
