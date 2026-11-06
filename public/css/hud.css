@@ -172,3 +172,103 @@
   .log-chat.open { left: 0; right: 0; bottom: 0; width: auto; height: 55vh; border-radius: 14px 14px 0 0; }
   .hud-screen .floats { bottom: calc(30vh + 90px); }
 }
+
+/* =====================================================================
+   Region contents
+   ===================================================================== */
+.hud-screen img.hi { width: 18px; height: 18px; vertical-align: middle; flex: 0 0 auto; }
+
+/* Roster cards */
+.pcard .pc-main { flex: 1; min-width: 0; }
+.pcard .pc-you { color: var(--fg-mute); font-weight: 600; }
+.pcard .player-mini { flex-wrap: wrap; gap: 6px 8px; }
+.pcard .player-mini .mb {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--bg-hud-panel); border-radius: 999px; padding: 1px 7px 1px 3px; font-variant-numeric: tabular-nums;
+}
+.pcard .pc-tracks { padding-left: 7px; letter-spacing: .04em; color: var(--track-trade); }
+.pcard .player-vp { display: inline-flex; align-items: center; gap: 3px; }
+.pcard .player-vp img.hi { width: 22px; height: 22px; }
+
+/* Dice */
+.hud-screen .dice { gap: 8px; min-height: 0; padding: 2px; }
+.hud-screen .dice img.die {
+  width: 52px; height: 52px; padding: 0; background: none; box-shadow: none; border-radius: 12px;
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35));
+}
+.hud-screen .dice img.die.idle { opacity: .3; }
+
+/* Dock: two trays split by a 16px divider */
+.dock .hand { gap: 16px; align-items: flex-end; padding-top: 8px; }
+.dock .tray { display: flex; gap: 4px; align-items: flex-end; }
+.dock .tray + .tray { border-left: 1px solid var(--border-hud-subtle); padding-left: 16px; }
+.dock .slot {
+  min-width: 0; width: 44px; height: 60px; padding: 0; gap: 0;
+  background: var(--bg-hud-elevated); border: 1px solid var(--border-hud-subtle); border-radius: 8px;
+  display: grid; place-items: center; overflow: visible; box-shadow: none;
+  transition: transform .15s ease;
+}
+.dock .slot:hover { transform: none; }
+.dock .slot:not(.zero):hover { transform: translateY(-6px); }
+.dock .slot img.mini { width: 40px; height: 56px; border-radius: 6px; display: block; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .45)); }
+.dock .slot img.ico { width: 28px; height: 28px; opacity: .4; }
+.dock .slot.zero { opacity: 1; background: var(--bg-hud-elevated); }
+.dock .slot .cnt {
+  position: absolute; right: -6px; top: -8px; min-width: 22px; height: 22px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: 11px;
+  background: var(--accent-electric); color: var(--bg-hud-primary); font-weight: 900; font-size: 13px;
+  border: 2px solid var(--bg-hud-primary);
+}
+.dock .slot.zero .cnt { display: none; }
+.dock .hand-limit {
+  align-self: center; padding: 6px 10px; border-radius: 999px;
+  background: var(--bg-hud-panel); color: var(--fg); font-weight: 900; font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.dock .hand-limit.over { background: var(--status-danger); color: #fff; }
+.dock .dev-card { height: 60px; min-width: 0; width: 48px; padding: 6px 4px; align-self: flex-end; }
+.dock .dev-card .k { font-size: 9px; }
+
+/* Barbarian banner */
+.bh-track { display: flex; gap: 3px; }
+.bh-cell {
+  width: 24px; height: 24px; border-radius: 6px; background: var(--bg-hud-panel);
+  display: grid; place-items: center; border: 1px solid var(--border-hud-subtle);
+}
+.bh-cell.land { border-color: var(--status-danger); }
+.bh-cell.ship { background: rgba(229, 57, 53, .18); border-color: var(--status-danger); }
+.bh-cell img.hi { width: 22px; height: 22px; }
+.bh-strength { font-weight: 900; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bh-strength.ok { color: var(--status-success); }
+.bh-strength.bad { color: var(--status-danger); }
+.bh-robber { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: var(--fg-dim); white-space: nowrap; }
+.bh-robber img.hi { width: 24px; height: 24px; }
+.bh-metros { display: flex; gap: 4px; }
+.bh-metro { position: relative; opacity: .35; }
+.bh-metro.held { opacity: 1; }
+.bh-metro img.hi { width: 26px; height: 26px; }
+.bh-metro i { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg-hud-primary); }
+
+/* Log lines */
+.log-chat .log .l { padding: 2px 0; line-height: 20px; }
+.log-chat .log img.li { width: 18px; height: 18px; vertical-align: -4px; margin: 0 1px; }
+.log-chat .log .ev-barb { color: #FF8A80; }
+.log-chat .log .ev-rob { color: var(--status-warning); }
+
+@media (max-width: 1100px) {
+  .bh-robber span { display: none; }
+}
+@media (max-width: 700px) {
+  .bh-cell { width: 16px; height: 18px; }
+  .bh-cell img.hi { width: 16px; height: 16px; }
+  .bh-metro img.hi { width: 20px; height: 20px; }
+  .bh-strength { font-size: 11px; }
+  .dock .slot { width: 33px; height: 46px; }
+  .dock .slot img.mini { width: 31px; height: 44px; }
+  .dock .slot img.ico { width: 22px; height: 22px; }
+  .dock .slot .cnt { min-width: 18px; height: 18px; font-size: 11px; right: -4px; top: -6px; }
+  .dock .tray { gap: 3px; }
+  .dock .hand { gap: 6px; }
+  .dock .tray + .tray { padding-left: 6px; }
+  .dock .hand-limit { padding: 4px 6px; font-size: 11px; }
+  .hud-screen .dice img.die { width: 40px; height: 40px; }
+}

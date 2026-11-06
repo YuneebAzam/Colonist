@@ -147,19 +147,20 @@
       const target = s.vpTarget || 10;
       s.players.forEach((p) => {
         const row = document.createElement('div');
-        row.className = 'player-row' + (s.currentPlayerId === p.id && s.phase !== 'lobby' ? ' current' : '') + (p.connected ? '' : ' offline');
+        const turn = s.currentPlayerId === p.id && s.phase !== 'lobby';
+        row.className = 'player-row pcard' + (turn ? ' current turn' : '') + (p.connected ? '' : ' offline');
         row.style.setProperty('--player-color', p.color);
         const vpPct = Math.min(100, (p.vp / target) * 100);
         const initial = (p.name || '?')[0].toUpperCase();
-        const badges = [];
-        if (s.longestRoad && s.longestRoad.playerId === p.id) badges.push(`<span class="badge" title="${s.cnk ? 'Longest Route' : 'Longest Road'} (+2)">🛣 ${s.longestRoad.length}</span>`);
-        if (!s.cnk && s.largestArmy && s.largestArmy.playerId === p.id) badges.push('<span class="badge" title="Largest Army (+2)">⚔</span>');
+        const trophies = [];
+        if (s.longestRoad && s.longestRoad.playerId === p.id) trophies.push(hudImg('hud_longest_road', `${s.cnk ? 'Longest Route' : 'Longest Road'} (+2) · ${s.longestRoad.length}`));
+        if (!s.cnk && s.largestArmy && s.largestArmy.playerId === p.id) trophies.push(hudImg('hud_largest_army', 'Largest Army (+2)'));
         if (s.cnk && s.ck) {
           const metros = TRACKS.filter(t => s.ck.metropolises[t] && s.ck.metropolises[t].playerId === p.id);
-          if (metros.length) badges.push(`<span class="badge" title="Metropolis: ${metros.join(', ')} (+2 each)">🏰${metros.length}</span>`);
-          if (s.ck.merchant && s.ck.merchant.playerId === p.id) badges.push('<span class="badge" title="Merchant (+1)">🧺</span>');
-          if (p.ck.defenders) badges.push(`<span class="badge" title="Defender of Catan (+${p.ck.defenders})">🛡${p.ck.defenders}</span>`);
-          if (p.ck.progressVP.length) badges.push(`<span class="badge" title="VP progress cards">⭐${p.ck.progressVP.length}</span>`);
+          for (const t of metros) trophies.push(hudImg('piece_metropolis_' + t, `Metropolis: ${t} (+2)`));
+          if (s.ck.merchant && s.ck.merchant.playerId === p.id) trophies.push(hudImg('token_merchant', 'Merchant (+1)'));
+          if (p.ck.defenders) trophies.push(hudImg('hud_defender_of_catan', `Defender of Catan (+${p.ck.defenders})`));
+          if (p.ck.progressVP.length) trophies.push(`<span class="badge" title="VP progress cards">⭐${p.ck.progressVP.length}</span>`);
         }
         const waiting = (s.waitingOn || []).includes(p.id) && s.phase !== 'lobby';
         row.innerHTML = `
@@ -167,22 +168,22 @@
             ${initial}
             ${waiting ? '<span class="pulse"></span>' : ''}
           </div>
-          <div style="flex:1; min-width:0">
-            <div class="player-name">${esc(p.name)}${p.id === Net.playerId ? ' <span style="color:var(--fg-mute); font-weight:600">(you)</span>' : ''}${p.connected ? '' : ' <span class="offline-tag">offline</span>'} ${badges.join('')}</div>
+          <div class="pc-main">
+            <div class="player-name" title="${esc(p.name)}">${esc(p.name)}${p.id === Net.playerId ? ' <span class="pc-you">(you)</span>' : ''}${p.connected ? '' : ' <span class="offline-tag">offline</span>'}</div>
             <div class="vp-bar" title="${p.vp} / ${target} VP"><span style="width:${vpPct}%"></span></div>
             <div class="player-mini">
-              <span title="Cards in hand">🃏 ${p.handCount}</span>
+              <span class="mb" title="Cards in hand">${hudImg('card_back_resource')}${p.handCount}</span>
               ${s.cnk && p.ck ? `
-                <span title="Progress cards">📜 ${p.ck.progressCount}</span>
-                <span title="Active knight strength">${Icons.knight} ${p.ck.strength}</span>
-                <span title="Trade / Politics / Science">⚙ ${p.ck.tracks.trade}/${p.ck.tracks.politics}/${p.ck.tracks.science}</span>`
+                <span class="mb" title="Progress cards">📜${p.ck.progressCount}</span>
+                <span class="mb" title="Active knight strength">${hudImg('hud_knight_shield')}${p.ck.strength}</span>
+                <span class="mb pc-tracks" title="Trade / Politics / Science city levels">${p.ck.tracks.trade}/${p.ck.tracks.politics}/${p.ck.tracks.science}</span>`
               : `
-                <span title="Dev cards">${Icons.dev} ${p.devCardCount}</span>
-                <span title="Knights played">${Icons.knight} ${p.playedKnights}</span>`}
-              <span title="Road length">🛣 ${p.roadLength || 0}</span>
+                <span class="mb" title="Dev cards">${hudImg('card_back_development')}${p.devCardCount}</span>
+                <span class="mb" title="Knights played">${hudImg('hud_largest_army')}${p.playedKnights}</span>`}
+              ${trophies.join('')}
             </div>
           </div>
-          <span class="player-vp" title="${p.id === Net.playerId ? 'Your total, including hidden VP cards' : 'Visible VP'}">${p.vp}<small>/${target}</small></span>
+          <span class="player-vp" title="${p.id === Net.playerId ? 'Your total, including hidden VP cards' : 'Visible VP'}">${hudImg('hud_victory_point')}${p.vp}<small>/${target}</small></span>
         `;
         el.appendChild(row);
       });
@@ -221,7 +222,7 @@
       const el = document.getElementById('dice');
       const d = this.state.dice;
       if (!d || !d.red) {
-        el.innerHTML = '<span style="color:var(--fg-mute); font-size:12px">no roll yet</span>';
+        el.innerHTML = diceHtml({ red: 1, yellow: 1, event: this.state.cnk ? 'barbarian' : null }, true);
         return;
       }
       const key = `${this.state.rollSeq}`;
@@ -241,11 +242,8 @@
         ticks++;
         const r = 1 + Math.floor(Math.random() * 6);
         const y = 1 + Math.floor(Math.random() * 6);
-        el.innerHTML = `
-          <div class="die red rolling">${pips(r)}</div>
-          <div class="die yellow rolling">${pips(y)}</div>
-          ${final.event ? `<div class="die event rolling">?</div>` : ''}
-        `;
+        const ev = ['barbarian', 'trade', 'politics', 'science'][Math.floor(Math.random() * 4)];
+        el.innerHTML = diceHtml({ red: r, yellow: y, event: final.event ? ev : null }).replace(/class="die /g, 'class="die rolling ');
         if (ticks < 10) {
           setTimeout(frame, 50 + ticks * 10);
         } else {
@@ -281,12 +279,10 @@
     renderCK() {
       const el = document.getElementById('ckPanel');
       const s = this.state;
-      if (!s.cnk || !s.ck || s.phase === 'lobby') { el.classList.add('hidden'); return; }
+      if (!s.cnk || !s.ck || s.phase === 'lobby') { el.classList.add('hidden'); document.getElementById('barbarianHud').innerHTML = ''; return; }
       el.classList.remove('hidden');
       const c = s.ck;
-      const steps = [];
-      for (let i = 1; i <= c.barbarianMax; i++) steps.push(`<span class="b-step ${i === c.barbarianDistance ? 'ship' : ''}">${i === c.barbarianDistance ? '⛵' : ''}</span>`);
-      const winning = c.knightStrength >= c.barbarianStrength;
+      this.renderBarbarianHud();
       const me = this.me;
       const tracks = me && me.ck ? TRACKS.map(t => {
         const lvl = me.ck.tracks[t];
@@ -298,16 +294,7 @@
           <span class="trk-lvl">${lvl}${mine ? ' 🏰' : ''}</span>
         </div>`;
       }).join('') : '';
-      el.innerHTML = `
-        <div class="b-track" title="Barbarian ship: attacks when it reaches shore">
-          <span class="b-shore">🏝</span>${steps.join('')}
-        </div>
-        <div class="b-strength ${winning ? 'ok' : 'bad'}">
-          Barbarians <b>${c.barbarianStrength}</b> vs knights <b>${c.knightStrength}</b>
-          ${s.robberActive ? '' : '<span class="lp-tag" title="The robber enters after the first attack">robber asleep</span>'}
-        </div>
-        <div class="trks">${tracks}</div>
-      `;
+      el.innerHTML = `<div class="sec-label">Your city levels</div><div class="trks">${tracks}</div>`;
     },
 
     renderPrimary() {
@@ -413,7 +400,8 @@
 
     renderLog() {
       const el = document.getElementById('log');
-      el.innerHTML = this.state.log.map(l => `<div class="l">${esc(l.msg)}</div>`).join('');
+      const players = this.state.players;
+      el.innerHTML = this.state.log.map(l => `<div class="l">${LogFmt.format(l.msg, players)}</div>`).join('');
       el.scrollTop = el.scrollHeight;
     },
 
@@ -421,48 +409,75 @@
       const el = document.getElementById('hand');
       el.innerHTML = '';
       if (!this.me || !this.me.hand) return;
-      for (const r of RES) {
-        const n = this.me.hand.r[r] || 0;
+      const slot = (kind, r) => {
+        const n = this.me.hand[kind][r] || 0;
         const d = document.createElement('div');
-        d.className = `card ${r}${n === 0 ? ' zero' : ''}`;
-        d.innerHTML = `<span class="icon">${Icons[r]}</span><span class="n">${n}</span><span class="k">${r}</span>`;
-        el.appendChild(d);
-      }
+        d.className = `slot card ${r}${n === 0 ? ' zero' : ''}`;
+        d.dataset.res = r;
+        d.title = `${n} ${r}`;
+        d.innerHTML = n > 0
+          ? `<img class="mini" src="${Assets.url('card_' + r)}" alt="${r}"><span class="cnt">${n}</span>`
+          : `<img class="ico" src="${Assets.url('icon_' + r)}" alt="${r}"><span class="cnt">0</span>`;
+        return d;
+      };
+      const tray = (cls) => { const t = document.createElement('div'); t.className = 'tray ' + cls; el.appendChild(t); return t; };
+      const limit = document.createElement('div');
+      limit.className = 'hand-limit' + (this.me.handCount > this.me.handLimit ? ' over' : '');
+      limit.title = 'Cards in hand / discard limit on a 7';
+      limit.textContent = `${this.me.handCount}/${this.me.handLimit}`;
+
+      const left = tray('tray-res');
+      for (const r of RES) left.appendChild(slot('r', r));
+      let extra = null;
       if (this.state.cnk) {
-        for (const c of COMM) {
-          const n = this.me.hand.c[c] || 0;
-          const d = document.createElement('div');
-          d.className = `card ${c}${n === 0 ? ' zero' : ''}`;
-          d.innerHTML = `<span class="icon">${Icons[c]}</span><span class="n">${n}</span><span class="k">${c}</span>`;
-          el.appendChild(d);
-        }
+        const right = tray('tray-comm');
+        for (const c of COMM) right.appendChild(slot('c', c));
+        right.appendChild(limit);
         const prog = (this.me.ck && this.me.ck.progress) || [];
         if (prog.length) {
-          const d = document.createElement('div');
-          d.className = 'card dev-card';
-          d.innerHTML = `<span class="icon">📜</span><span class="n">${prog.length}</span><span class="k">progress</span>`;
-          d.title = prog.map(pretty).join(', ');
-          d.onclick = () => this.openProgressModal();
-          el.appendChild(d);
+          extra = document.createElement('div');
+          extra.className = 'card dev-card';
+          extra.innerHTML = `<span class="icon">📜</span><span class="n">${prog.length}</span><span class="k">progress</span>`;
+          extra.title = prog.map(pretty).join(', ');
+          extra.onclick = () => this.openProgressModal();
         }
       } else {
+        left.appendChild(limit);
         const cards = [...(this.me.devCards || []), ...(this.me.newDevCards || [])];
         if (cards.length) {
-          const d = document.createElement('div');
-          d.className = 'card dev-card';
-          d.innerHTML = `<span class="icon">${Icons.dev}</span><span class="n">${cards.length}</span><span class="k">dev</span>`;
-          d.title = cards.map(pretty).join(', ');
-          el.appendChild(d);
+          extra = document.createElement('div');
+          extra.className = 'card dev-card';
+          extra.innerHTML = `<span class="icon">${Icons.dev}</span><span class="n">${cards.length}</span><span class="k">dev</span>`;
+          extra.title = cards.map(pretty).join(', ');
         }
       }
-      const limit = this.me.handLimit;
-      const count = this.me.handCount;
-      const lim = document.createElement('div');
-      lim.className = 'hand-limit' + (count > limit ? ' over' : '');
-      lim.title = 'Cards in hand / discard limit on a 7';
-      lim.textContent = `${count}/${limit}`;
-      el.appendChild(lim);
+      if (extra) el.appendChild(extra);
       if (!this._prevHand) this._prevHand = JSON.parse(JSON.stringify(this.me.hand));
+    },
+
+    // ---------------- Barbarian / robber / metropolis banner (C&K) ----------------
+    renderBarbarianHud() {
+      const el = document.getElementById('barbarianHud');
+      const s = this.state, c = s.ck;
+      const at = c.barbarianMax - c.barbarianDistance; // 0 = just set sail, max = landing
+      const cells = [];
+      for (let i = 0; i <= c.barbarianMax; i++) {
+        cells.push(`<span class="bh-cell${i === at ? ' ship' : ''}${i === c.barbarianMax ? ' land' : ''}">${i === at ? hudImg('hud_barbarian_ship', `${c.barbarianDistance} to go`) : ''}</span>`);
+      }
+      const losing = c.barbarianStrength > c.knightStrength;
+      const robber = s.robberActive
+        ? hudImg('hud_robber_active', 'Robber active')
+        : hudImg('hud_robber_asleep', 'Robber asleep until the first barbarian attack');
+      const metros = TRACKS.map(t => {
+        const m = c.metropolises[t];
+        const owner = m && s.players.find(p => p.id === m.playerId);
+        return `<span class="bh-metro${owner ? ' held' : ''}" title="${t} metropolis${owner ? ': ' + esc(owner.name) : ' (unclaimed)'}">${hudImg('piece_metropolis_' + t)}${owner ? `<i style="background:${owner.color}"></i>` : ''}</span>`;
+      }).join('');
+      el.innerHTML = `
+        <div class="bh-track" title="Barbarian ship: ${c.barbarianDistance} steps to go">${cells.join('')}</div>
+        <div class="bh-strength ${losing ? 'bad' : 'ok'}" title="Barbarians (cities) vs active knights">B ${c.barbarianStrength} vs K ${c.knightStrength}</div>
+        <div class="bh-robber">${robber}<span>${s.robberActive ? 'Robber active' : 'Robber asleep'}</span></div>
+        <div class="bh-metros">${metros}</div>`;
     },
 
     // ---------------- Prompts (choices the server is waiting on) ----------------
@@ -1314,13 +1329,14 @@
     },
   };
 
-  function diceHtml(d) {
-    const ev = { barbarian: '⛵', trade: '🟨', politics: '🟦', science: '🟩' };
-    return `
-      <div class="die red">${pips(d.red)}</div>
-      <div class="die yellow">${pips(d.yellow)}</div>
-      ${d.event ? `<div class="die event ${d.event}" title="${d.event}">${ev[d.event] || ''}<small>${d.event}</small></div>` : ''}
-    `;
+  // The engine's yellow die is drawn as the white production die.
+  function diceHtml(d, idle = false) {
+    const die = (id, title) => `<img class="die${idle ? ' idle' : ''}" src="${Assets.url(id)}" width="52" height="52" alt="${title}" title="${title}">`;
+    return die('die_white_' + d.yellow, `white ${d.yellow}`) + die('die_red_' + d.red, `red ${d.red}`) +
+      (d.event ? die('die_event_' + d.event, `event: ${d.event}`) : '');
+  }
+  function hudImg(id, title = '') {
+    return `<img class="hi" src="${Assets.url(id)}" width="18" height="18" alt=""${title ? ` title="${esc(title)}"` : ''}>`;
   }
   function btnEl(label, onClick, span = false, cls = '') {
     const b = document.createElement('button');

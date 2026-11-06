@@ -48,7 +48,14 @@
       ctx.restore();
       return true;
     },
-    url(id) { return manifest[id] ? 'assets/' + manifest[id] : ''; },
+    // Works before the manifest has loaded: ids map to folders by prefix.
+    url(id) {
+      if (manifest[id]) return 'assets/' + manifest[id];
+      const dir = [['icon_', 'icons'], ['hud_', 'icons'], ['die_', 'dice'], ['piece_', 'pieces'], ['knight_', 'knights'],
+        ['token_', 'tokens'], ['card_back_', 'cards/backs'], ['card_', 'cards/resources'], ['dev_', 'cards/development'],
+        ['prog_', 'cards/progress'], ['port_', 'ports'], ['hex_', 'hexes']].find(([p]) => id.startsWith(p));
+      return dir ? `assets/${dir[1]}/${id}.svg` : '';
+    },
     playerKey(hex) { return PLAYER_KEYS[String(hex || '').toUpperCase()] || 'white'; },
     onReady(fn) { if (Assets.ready) fn(); else waiting.push(fn); },
   };
