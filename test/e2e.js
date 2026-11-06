@@ -239,6 +239,8 @@ async function resolvePrompts(pages) {
     Object.assign(gp.hand.r, { sheep: gp.hand.r.sheep + 1, ore: gp.hand.r.ore + 1, wheat: gp.hand.r.wheat + 1 });
     gp.hand.c.cloth += 1;
     gp.ck.progress.push('irrigation');
+    // A barbarian attack may already have reduced this player's only city; improvements need one.
+    if (!gp.cities.length && gp.settlements.length) gp.cities.push(gp.settlements.pop());
     await cur.evaluate(() => Net.send('trade_cancel'));
     await sleep(200);
     await cur.locator('#actionButtons .action-build', { hasText: 'Knight' }).click();
