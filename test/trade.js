@@ -20,6 +20,11 @@ assert.ok(g.openTrade, 'offer stored');
 // C tries to accept but has no ore → should throw
 assert.throws(() => g.tradeRespond('c', true));
 
+// C declines: the decline is remembered so the offerer sees a ✗ for C
+g.tradeRespond('c', false);
+assert.strictEqual(g.openTrade.responses.c, 'decline');
+assert.throws(() => g.tradeAccept('a', 'c'), /neither accepted/);
+
 // B accepts
 g.tradeRespond('b', true);
 assert.strictEqual(g.openTrade.responses.b, 'accept');

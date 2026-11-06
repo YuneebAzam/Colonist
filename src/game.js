@@ -612,7 +612,7 @@ class Game {
       delete this.openTrade.counters[p.id];
       this.pushLog(`${p.name} accepts the offer`);
     } else {
-      delete this.openTrade.responses[p.id];
+      this.openTrade.responses[p.id] = 'decline';
       delete this.openTrade.counters[p.id];
       this.pushLog(`${p.name} declines the offer`);
     }

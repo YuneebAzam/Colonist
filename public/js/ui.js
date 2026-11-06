@@ -30,6 +30,28 @@
   };
   const pretty = (s) => (s || '').replace(/_/g, ' ');
 
+  // ---- trade panel helpers
+  const CHECK = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const XMARK = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>';
+  const SWAP = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const DOTS = '<svg viewBox="0 0 24 24" width="22" height="22"><g fill="currentColor"><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/></g></svg>';
+  const GROUP = '<svg viewBox="0 0 40 32" width="36" height="30"><g fill="#fff" stroke="#2a3140" stroke-width="2"><circle cx="9" cy="10" r="5"/><path d="M1 27c0-6 4-9 8-9s8 3 8 9z"/><circle cx="31" cy="10" r="5"/><path d="M23 27c0-6 4-9 8-9s8 3 8 9z"/><circle cx="20" cy="9" r="6"/><path d="M10 30c0-7 4.5-11 10-11s10 4 10 11z"/></g></svg>';
+  const ARROW_DOWN = '<svg viewBox="0 0 24 28" width="20" height="24"><path d="M8 2h8v12h6L12 26 2 14h6z" fill="#3cb043" stroke="#1f6f25" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  const ARROW_UP = '<svg viewBox="0 0 24 28" width="20" height="24"><path d="M8 26h8V14h6L12 2 2 14h6z" fill="#e53935" stroke="#8e1c1a" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  const cardImg = (k) => `<img src="${Assets.url('card_' + k)}" alt="${k}" draggable="false">`;
+  const miniCards = (keys, o) => `<span class="tr-mini">${keys.filter(k => (o || {})[k]).map(k => `<span class="tr-mc">${cardImg(k)}<i>${o[k]}</i></span>`).join('')}</span>`;
+  function tradeRowsHtml(keys, get, give, editable) {
+    const row = (cls, icon, arrow, o, hint) => {
+      const cards = keys.filter(k => (o || {})[k] > 0).map(k => editable
+        ? `<button class="tr-c" data-k="${k}" title="Take back">${cardImg(k)}<i>${o[k]}</i></button>`
+        : `<span class="tr-c">${cardImg(k)}<i>${o[k]}</i></span>`).join('');
+      return `<div class="tr-row ${cls}"><span class="tr-who">${icon}</span><span class="tr-arrow">${arrow}</span>
+        <div class="tr-cards">${cards || `<span class="cp-hint">${hint}</span>`}</div></div>`;
+    };
+    const me = UI.me, avatar = `<span class="tr-av tr-me" style="--pc:${me ? me.color : '#888'}">${esc(me ? me.name[0] || '?' : '?')}</span>`;
+    return `<div class="tr-rows">${row('tr-row-get', GROUP, ARROW_DOWN, get, 'tap a card above to ask for it')}${row('tr-row-give', avatar, ARROW_UP, give, 'tap your cards below to offer them')}</div>`;
+  }
+
   const UI = {
     state: null, me: null, maps: [], modes: [],
     _promptOpen: null,
@@ -817,59 +839,50 @@
       document.querySelectorAll('.chip[data-c]').forEach(b => b.onclick = () => { cb(b.dataset.c); closeModal(); });
     },
 
-    openPlayerTradeModal() {
+    // Card-art trade composer (propose + counter). Tap the market row to ask for a card,
+    // tap your hand to offer one, tap a card in the get/give rows to take it back.
+    tradeComposer({ title, give: g0 = {}, want: w0 = {}, onSend }) {
       const keys = this.state.cnk ? [...RES, ...COMM] : RES;
-      const have = (k) => RES.includes(k) ? (this.me.hand.r[k] || 0) : (this.me.hand.c[k] || 0);
+      const hand = this.me.hand;
+      const have = (k) => RES.includes(k) ? (hand.r[k] || 0) : (hand.c[k] || 0);
       const give = {}, want = {};
-      for (const r of keys) { give[r] = 0; want[r] = 0; }
+      for (const k of keys) { give[k] = Math.min(g0[k] || 0, have(k)); want[k] = w0[k] || 0; }
       const render = () => {
-        const canOffer = keys.some(r => give[r] > 0) && keys.some(r => want[r] > 0) && !keys.some(r => give[r] && want[r]);
+        const ok = keys.some(k => give[k]) && keys.some(k => want[k]);
+        const stacks = keys.filter(k => have(k) > 0).map(k => {
+          const left = have(k) - give[k];
+          return `<button class="tc-card" data-hand="${k}" ${left && !want[k] ? '' : 'disabled'} title="Offer ${k}">
+            ${cardImg(k)}<span class="tc-n">${left}</span></button>`;
+        }).join('');
         openModal(`
-          <h3>Propose a trade</h3>
-          <div class="sec-label">You give</div>
-          <div class="row">${keys.map(r => `
-            <div class="counter-chip-ui">
-              <span class="icon">${Icons[r]}</span>
-              <span class="rbtn" data-op="-" data-side="give" data-r="${r}">−</span>
-              <span class="rnum">${give[r]}</span>
-              <span class="rbtn" data-op="+" data-side="give" data-r="${r}">+</span>
-              <span class="rhave">/ ${have(r)}</span>
-            </div>`).join('')}
-          </div>
-          <div class="sec-label" style="margin-top:18px">You want</div>
-          <div class="row">${keys.map(r => `
-            <div class="counter-chip-ui">
-              <span class="icon">${Icons[r]}</span>
-              <span class="rbtn" data-op="-" data-side="want" data-r="${r}">−</span>
-              <span class="rnum">${want[r]}</span>
-              <span class="rbtn" data-op="+" data-side="want" data-r="${r}">+</span>
-            </div>`).join('')}
-          </div>
-          <div class="sec-hint">Both sides need cards, and you can't trade a type for itself.</div>
-          <div class="row" style="justify-content:flex-end;margin-top:20px">
-            <button class="chip ghost" id="pCancel">Cancel</button>
-            <button class="chip on" id="pSend" ${canOffer ? '' : 'disabled'}>Send offer</button>
-          </div>
-        `);
-        document.querySelectorAll('[data-op]').forEach(b => {
-          b.onclick = (e) => {
-            e.stopPropagation();
-            const r = b.dataset.r, side = b.dataset.side, op = b.dataset.op;
-            const bag = side === 'give' ? give : want;
-            if (op === '+') {
-              if (side === 'give' && bag[r] >= have(r)) return;
-              bag[r]++;
-            } else if (bag[r] > 0) bag[r]--;
-            render();
-          };
-        });
-        document.getElementById('pCancel').onclick = closeModal;
-        document.getElementById('pSend').onclick = () => {
-          Net.send('trade_offer', { give: strip(give), want: strip(want) });
-          closeModal();
+          <div class="cardpick tradepick">
+            <div class="cp-head"><h3 class="cp-title tc-title">${esc(title)}</h3></div>
+            <div class="tc-market">${keys.map(k => `<button class="tc-card" data-market="${k}" ${give[k] ? 'disabled' : ''} title="Ask for ${k}">${cardImg(k)}</button>`).join('')}</div>
+            ${tradeRowsHtml(keys, want, give, true)}
+            <div class="cp-foot">
+              <button class="tr-btn tr-no" id="tcCancel" title="Cancel">${XMARK}</button>
+              <button class="tr-btn tr-yes" id="tcSend" title="Send" ${ok ? '' : 'disabled'}>${CHECK}</button>
+            </div>
+            <div class="cp-hand">${stacks || '<span class="cp-hint">No cards to offer</span>'}</div>
+          </div>`);
+        document.getElementById('modal').classList.add('modal-cardpick');
+        onModalClose(() => document.getElementById('modal').classList.remove('modal-cardpick'));
+        const on = (sel, fn) => document.querySelectorAll('#modal ' + sel).forEach(b => b.onclick = (e) => { e.stopPropagation(); fn(b); render(); });
+        on('[data-market]', b => { want[b.dataset.market]++; });
+        on('[data-hand]', b => { const k = b.dataset.hand; if (give[k] < have(k)) give[k]++; });
+        on('.tr-row-get [data-k]', b => { want[b.dataset.k] = Math.max(0, want[b.dataset.k] - 1); });
+        on('.tr-row-give [data-k]', b => { give[b.dataset.k] = Math.max(0, give[b.dataset.k] - 1); });
+        document.getElementById('tcCancel').onclick = () => closeModal();
+        document.getElementById('tcSend').onclick = () => {
+          document.getElementById('modal').classList.remove('modal-cardpick');
+          onSend(strip(give), strip(want)); closeModalSilently();
         };
       };
       render();
+    },
+
+    openPlayerTradeModal() {
+      this.tradeComposer({ title: 'Trade with players', onSend: (give, want) => Net.send('trade_offer', { give, want }) });
     },
 
     renderOpenTrade() {
@@ -879,64 +892,49 @@
       if (!bar) {
         bar = document.createElement('div');
         bar.id = 'tradeBar';
-        bar.className = 'trade-bar';
+        bar.className = 'trade-panel';
         document.getElementById('boardWrap').appendChild(bar);
       }
-      const keys = this.state.cnk ? [...RES, ...COMM] : RES;
-      const from = this.state.players.find(p => p.id === t.fromId);
-      const fmtIcons = (o) => keys.filter(r => (o[r] || 0) > 0)
-        .map(r => `<span class="trade-pill ${r}">${o[r]}${Icons[r]}</span>`).join('') || '<span style="color:var(--fg-mute)">—</span>';
+      const s = this.state;
+      const keys = s.cnk ? [...RES, ...COMM] : RES;
+      const from = s.players.find(p => p.id === t.fromId);
       const isMine = t.fromId === Net.playerId;
-      const accepters = Object.keys(t.responses).filter(id => t.responses[id] === 'accept');
-      const counterers = Object.keys(t.counters || {});
-      const myCounter = (t.counters || {})[Net.playerId];
-      const already = t.responses[Net.playerId] === 'accept';
-
+      const resp = t.responses || {}, counters = t.counters || {};
       if (isMine) {
-        const options = [];
-        for (const id of accepters) {
-          const p = this.state.players.find(x => x.id === id);
-          options.push(`
-            <button class="chip on confirm-chip" data-accept="${id}">
-              <span style="color:${p.color}">●</span> Confirm with ${esc(p.name)}
-            </button>`);
-        }
-        for (const id of counterers) {
-          const p = this.state.players.find(x => x.id === id);
-          const c = t.counters[id];
-          options.push(`
-            <button class="chip confirm-chip counter-chip" data-accept="${id}" title="Accept this counter">
-              <span style="color:${p.color}">●</span> ${esc(p.name)}'s counter:
-              <span class="mini-trade">${fmtIcons(c.give)} <span class="arrow">→</span> ${fmtIcons(c.want)}</span>
-            </button>`);
-        }
+        const others = s.players.filter(p => p.id !== t.fromId);
+        const btn = (p) => {
+          const st = resp[p.id] === 'accept' ? 'accept' : counters[p.id] ? 'counter' : resp[p.id] === 'decline' ? 'decline' : 'wait';
+          const icon = { accept: CHECK, counter: SWAP, decline: XMARK, wait: DOTS }[st];
+          const tip = { accept: `Trade with ${p.name}`, counter: `Accept ${p.name}'s counter`, decline: `${p.name} declined`, wait: `Waiting for ${p.name}` }[st];
+          return `<button class="tr-btn tr-p ${st}" style="--pc:${p.color}" data-pid="${p.id}" data-st="${st}" title="${esc(tip)}" ${st === 'accept' || st === 'counter' ? '' : 'disabled'}>${icon}</button>`;
+        };
+        const counterRows = others.filter(p => counters[p.id]).map(p => `
+          <div class="tr-counter"><span class="tr-av" style="--pc:${p.color}">${esc(p.name[0] || '?')}</span>
+            <b>${esc(p.name)}</b> counters: gives ${miniCards(keys, counters[p.id].give)} wants ${miniCards(keys, counters[p.id].want)}</div>`).join('');
         bar.innerHTML = `
-          <div class="t-head">
-            <strong>Your offer</strong>
-            <span class="mini-trade">${fmtIcons(t.give)} <span class="arrow">→</span> ${fmtIcons(t.want)}</span>
-          </div>
-          <div class="t-body">
-            ${options.length === 0
-              ? '<span style="color:var(--fg-dim); font-size:12px">waiting for responses…</span>'
-              : options.join('')}
-            <button class="chip ghost" id="tCancelOffer">Cancel</button>
-          </div>`;
-        bar.querySelectorAll('[data-accept]').forEach(b => {
-          b.onclick = () => Net.send('trade_accept', { otherId: b.dataset.accept });
+          <div class="tr-players">${others.map(p => `<span class="tr-av" style="--pc:${p.color}" title="${esc(p.name)}">${esc(p.name[0] || '?')}</span>`).join('')}</div>
+          <div class="tr-main">
+            ${tradeRowsHtml(keys, t.want, t.give, false)}
+            <div class="tr-actions">${others.map(btn).join('')}
+              <button class="tr-btn tr-cancel" id="tCancelOffer" title="Cancel offer">${XMARK}</button></div>
+          </div>${counterRows}`;
+        bar.querySelectorAll('.tr-p[data-st="accept"], .tr-p[data-st="counter"]').forEach(b => {
+          b.onclick = () => Net.send('trade_accept', { otherId: b.dataset.pid });
         });
         document.getElementById('tCancelOffer').onclick = () => Net.send('trade_cancel');
       } else {
-        const status = already ? 'Accepted' : myCounter ? 'Countered' : '';
+        const mine = resp[Net.playerId], countered = !!counters[Net.playerId];
+        const canPay = keys.every(k => (RES.includes(k) ? (this.me.hand.r[k] || 0) : (this.me.hand.c[k] || 0)) >= ((t.want || {})[k] || 0));
         bar.innerHTML = `
-          <div class="t-head">
-            <strong>${esc(from.name)}</strong> offers
-            <span class="mini-trade">${fmtIcons(t.give)} <span class="arrow">→</span> ${fmtIcons(t.want)}</span>
-            ${status ? `<span class="status-pill">${status}</span>` : ''}
-          </div>
-          <div class="t-body">
-            <button class="chip on" id="tAccept" ${already ? 'disabled' : ''}>${already ? '✓ Accepted' : 'Accept'}</button>
-            <button class="chip" id="tCounter">${myCounter ? 'Edit counter' : 'Counter'}</button>
-            <button class="chip ghost" id="tReject">${already || myCounter ? 'Withdraw' : 'Pass'}</button>
+          <div class="tr-players"><span class="tr-av" style="--pc:${from.color}">${esc(from.name[0] || '?')}</span>
+            <span class="tr-from"><b>${esc(from.name)}</b> wants to trade</span></div>
+          <div class="tr-main">
+            ${tradeRowsHtml(keys, t.give, t.want, false)}
+            <div class="tr-actions">
+              <button class="tr-btn tr-no ${mine === 'decline' ? 'picked' : ''}" id="tReject" title="Decline">${XMARK}</button>
+              <button class="tr-btn tr-counterbtn ${countered ? 'picked' : ''}" id="tCounter" title="${countered ? 'Edit counter' : 'Counter-offer'}">${SWAP}</button>
+              <button class="tr-btn tr-yes ${mine === 'accept' ? 'picked' : ''}" id="tAccept" title="${canPay ? 'Accept' : "You don't have these cards"}" ${canPay && mine !== 'accept' ? '' : 'disabled'}>${CHECK}</button>
+            </div>
           </div>`;
         document.getElementById('tAccept').onclick = () => Net.send('trade_respond', { accept: true });
         document.getElementById('tReject').onclick = () => Net.send('trade_respond', { accept: false });
@@ -945,60 +943,13 @@
     },
 
     openCounterModal(trade) {
-      const keys = this.state.cnk ? [...RES, ...COMM] : RES;
-      const have = (k) => RES.includes(k) ? (this.me.hand.r[k] || 0) : (this.me.hand.c[k] || 0);
-      const give = {}, want = {};
-      for (const r of keys) { give[r] = 0; want[r] = 0; }
-      // Preseed with inverse of their offer as starting point
-      for (const [k, v] of Object.entries(trade.give)) want[k] = v;
-      for (const [k, v] of Object.entries(trade.want)) give[k] = Math.min(v, have(k));
-      const render = () => {
-        const canSend = keys.some(r => give[r] > 0) && keys.some(r => want[r] > 0) && !keys.some(r => give[r] && want[r]);
-        openModal(`
-          <h3>Counter-offer</h3>
-          <div class="sec-label">You give (from your hand)</div>
-          <div class="row">${keys.map(r => `
-            <div class="counter-chip-ui">
-              <span class="icon">${Icons[r]}</span>
-              <span class="rbtn" data-op="-" data-side="give" data-r="${r}">−</span>
-              <span class="rnum">${give[r]}</span>
-              <span class="rbtn" data-op="+" data-side="give" data-r="${r}">+</span>
-              <span class="rhave">/ ${have(r)}</span>
-            </div>`).join('')}
-          </div>
-          <div class="sec-label" style="margin-top:18px">You want (from ${esc(this.state.players.find(p => p.id === trade.fromId).name)})</div>
-          <div class="row">${keys.map(r => `
-            <div class="counter-chip-ui">
-              <span class="icon">${Icons[r]}</span>
-              <span class="rbtn" data-op="-" data-side="want" data-r="${r}">−</span>
-              <span class="rnum">${want[r]}</span>
-              <span class="rbtn" data-op="+" data-side="want" data-r="${r}">+</span>
-            </div>`).join('')}
-          </div>
-          <div class="row" style="justify-content:flex-end;margin-top:20px">
-            <button class="chip ghost" id="cCancel">Cancel</button>
-            <button class="chip on" id="cSend" ${canSend ? '' : 'disabled'}>Send counter</button>
-          </div>
-        `);
-        document.querySelectorAll('[data-op]').forEach(b => {
-          b.onclick = (e) => {
-            e.stopPropagation();
-            const r = b.dataset.r, side = b.dataset.side, op = b.dataset.op;
-            const bag = side === 'give' ? give : want;
-            if (op === '+') {
-              if (side === 'give' && bag[r] >= have(r)) return;
-              bag[r]++;
-            } else if (bag[r] > 0) bag[r]--;
-            render();
-          };
-        });
-        document.getElementById('cCancel').onclick = closeModal;
-        document.getElementById('cSend').onclick = () => {
-          Net.send('trade_counter', { give: strip(give), want: strip(want) });
-          closeModal();
-        };
-      };
-      render();
+      const from = this.state.players.find(p => p.id === trade.fromId);
+      const mine = (trade.counters || {})[Net.playerId];
+      this.tradeComposer({
+        title: `Counter-offer to ${from ? from.name : '?'}`,
+        give: mine ? mine.give : trade.want, want: mine ? mine.want : trade.give,
+        onSend: (give, want) => Net.send('trade_counter', { give, want }),
+      });
     },
 
     openBankTradeModal() {

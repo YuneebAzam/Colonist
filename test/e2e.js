@@ -226,6 +226,32 @@ async function resolvePrompts(pages) {
       ok('bank trade through the modal');
     }
     if (turn === 2) { await shot(cur, '04-midgame'); await shot(g2, '04-midgame-phone'); }
+    if (turn === 3) {
+      // Player trade through the card-art composer and offer panel: one guest declines, one accepts.
+      const others = room.game.players.filter(p => p.id !== gp.id);
+      gp.hand.r.sheep += 1; others[0].hand.r.ore += 1;
+      await cur.evaluate(() => Net.send('trade_cancel'));
+      await waitFor(async () => (await state(cur)).players.find(p => p.id === gp.id).hand.r.sheep >= 1);
+      await clickButton(cur, 'Trade');
+      await cur.locator('#modal [data-market="ore"]').click();
+      await cur.locator('#modal [data-hand="sheep"]').click();
+      assert.strictEqual(await cur.locator('#modal .tr-row-get .tr-c[data-k="ore"] i').textContent(), '1', 'asked-for card shows a count');
+      assert.strictEqual(await cur.locator('#modal [data-market="sheep"]').isDisabled(), true, 'cannot ask for a type you offer');
+      await shot(cur, '04b-trade-compose');
+      await cur.locator('#tcSend').click();
+      const accepter = await byId(others[0].id), decliner = await byId(others[1].id);
+      await waitFor(() => accepter.locator('#tradeBar #tAccept').isVisible());
+      assert.strictEqual(await accepter.locator('#tradeBar .tr-row-get .tr-c img[alt="sheep"]').count(), 1, 'guest sees what they get');
+      await decliner.locator('#tradeBar #tReject').click();
+      await waitFor(async () => (await cur.locator(`#tradeBar .tr-p[data-pid="${others[1].id}"]`).getAttribute('data-st')) === 'decline');
+      await accepter.locator('#tradeBar #tAccept').click();
+      await waitFor(async () => (await cur.locator(`#tradeBar .tr-p[data-pid="${others[0].id}"]`).getAttribute('data-st')) === 'accept');
+      await shot(cur, '04c-trade-offer'); await shot(accepter, '04d-trade-incoming');
+      await cur.locator(`#tradeBar .tr-p[data-pid="${others[0].id}"]`).click();
+      await waitFor(async () => (await state(cur)).tradeHistory.some(h => h.kind === 'p2p'));
+      await waitFor(async () => (await cur.locator('#tradeBar').count()) === 0);
+      ok('player trade with card art: compose, decline shows ✗, accept shows ✓, confirm trades');
+    }
     await cur.locator('#endTurnBtn').click();
     await waitFor(async () => (await state(host)).currentPlayerId !== s.currentPlayerId);
   }
