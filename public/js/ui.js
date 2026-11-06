@@ -60,6 +60,11 @@
       this.renderLog();
       this.renderHand();
       this.renderOpenTrade();
+      if (state.paused) {
+        // Nothing can be done while the host has paused: grey out every action, hold prompts back.
+        document.querySelectorAll('#actionButtons button, #primaryAction').forEach(b => { b.disabled = true; });
+        return;
+      }
       this.openNextPrompt();
     },
 
@@ -244,7 +249,7 @@
         const r = 1 + Math.floor(Math.random() * 6);
         const y = 1 + Math.floor(Math.random() * 6);
         const ev = ['barbarian', 'trade', 'politics', 'science'][Math.floor(Math.random() * 4)];
-        el.innerHTML = diceHtml({ red: r, yellow: y, event: final.event ? ev : null }).replace(/class="die /g, 'class="die rolling ');
+        el.innerHTML = diceHtml({ red: r, yellow: y, event: final.event ? ev : null }, false, true);
         if (ticks < 10) {
           setTimeout(frame, 50 + ticks * 10);
         } else {
@@ -1359,8 +1364,8 @@
   };
 
   // The engine's yellow die is drawn as the white production die.
-  function diceHtml(d, idle = false) {
-    const die = (id, title) => `<img class="die${idle ? ' idle' : ''}" src="${Assets.url(id)}" width="52" height="52" alt="${title}" title="${title}">`;
+  function diceHtml(d, idle = false, rolling = false) {
+    const die = (id, title) => `<img class="die${idle ? ' idle' : ''}${rolling ? ' rolling' : ''}" src="${Assets.url(id)}" width="52" height="52" alt="${title}" title="${title}">`;
     return die('die_white_' + d.yellow, `white ${d.yellow}`) + die('die_red_' + d.red, `red ${d.red}`) +
       (d.event ? die('die_event_' + d.event, `event: ${d.event}`) : '');
   }

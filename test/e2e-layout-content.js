@@ -54,16 +54,24 @@ module.exports = async ({ host, phone, MODE, assert, ok, waitFor }) => {
   const vis = (page, sel) => page.evaluate((sel) => { const e = document.querySelector(sel); return !!e && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0; }, sel);
   assert(await vis(host, '#pauseBtn') && await vis(host, '#resetBtn'), 'host sees pause + reset');
   assert(!(await vis(phone, '#pauseBtn')) && !(await vis(phone, '#resetBtn')), 'guest does not');
+  const live = (page) => page.evaluate(() => [...document.querySelectorAll('#actionButtons button, #primaryAction')]
+    .filter(b => !b.disabled && !b.classList.contains('hidden')).length);
+  assert((await live(host)) > 0, 'host has live action buttons before pausing');
   await host.locator('#pauseBtn').click();
   await waitFor(() => phone.evaluate(() => UI.state.paused));
   await waitFor(() => vis(phone, '#pausedBanner'));
+  await waitFor(async () => (await live(host)) === 0);
   assert.strictEqual((await host.locator('#pauseBtn').textContent()).trim(), '▶', 'pause button flips to resume');
   await host.locator('#pauseBtn').click();
   await waitFor(async () => !(await vis(phone, '#pausedBanner')));
+  await waitFor(async () => (await live(host)) > 0);
   await host.locator('#resetBtn').click();
   await waitFor(() => vis(host, '#modal:not(.hidden) #rsConfirm'));
   await host.locator('#modal #rsCancel').click();
   assert.notStrictEqual(await host.evaluate(() => UI.state.phase), 'lobby', 'cancel keeps the game');
+  const rolling = await host.evaluate(() => { UI.animateDice({ red: 3, yellow: 4, event: UI.state.cnk ? 'trade' : null }); return document.querySelectorAll('#dice img.die.rolling').length; });
+  assert.strictEqual(rolling, MODE === 'cnk' ? 3 : 2, 'dice shake while rolling');
+  ok('dice roll animation marks every die as rolling');
   ok('match bar: host pause shows a paused banner to guests, resume clears it; reset asks first');
 
   ok(`HUD content (${MODE}): roster badges, ${f.trays} dock tray(s) + limit ${f.limit}, ${f.diceImgs.length} dice${MODE === 'cnk' ? ', barbarian track + robber + metropolis chips' : ''}`);

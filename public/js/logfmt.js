@@ -7,12 +7,13 @@
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const safeColor = (c) => (/^#[0-9a-fA-F]{3,8}$/.test(c || '') ? c : '#ECEFF1');
   const icon = (id, alt) => `<img class="li" src="assets/icons/${id}.svg" width="20" height="20" alt="${alt}">`;
-  const RES_RE = new RegExp(`(?<![\\w-])(${RES.join("|")})(s)?(?![\\w-])`, "gi");
+  // Captured prefix instead of a lookbehind, so older Safari (< 16.4) can still parse this file.
+  const RES_RE = new RegExp(`(^|[^\\w-])(${RES.join('|')})(s)?(?![\\w-])`, 'gi');
 
   function format(text, players) {
     let html = esc(text);
     // Resource words first (their markup contains no player names).
-    html = html.replace(RES_RE, (m, word) => icon('icon_' + word.toLowerCase(), word.toLowerCase()));
+    html = html.replace(RES_RE, (m, pre, word) => pre + icon('icon_' + word.toLowerCase(), word.toLowerCase()));
     // Player names, longest first so "Ann" never eats part of "Anna". Only touch text outside tags.
     const ps = (players || []).filter(p => p && p.name).slice().sort((a, b) => b.name.length - a.name.length);
     for (const p of ps) {

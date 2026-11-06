@@ -163,6 +163,15 @@ const isErr = m => m.type === 'error';
     `resume restores the remaining ${remaining}ms, not a fresh timer (${resumed.state.deadline - resumed.state.serverNow}ms)`);
   step('resume: remaining turn time restored');
 
+  // Pausing with almost no time left must not make the turn auto-act the instant it resumes.
+  room.deadline = Date.now() + 5;
+  host.send('pause');
+  await host.next(m => isState(m) && m.state.paused);
+  host.send('resume');
+  const graced = await host.next(m => isState(m) && !m.state.paused);
+  assert.ok(graced.state.deadline - graced.state.serverNow >= 45, `resume leaves a grace period (${graced.state.deadline - graced.state.serverNow}ms)`);
+  step('resume: a nearly-expired turn gets a short grace period');
+
   host.send('pause');
   await host.next(m => isState(m) && m.state.paused);
   host.send('restart');

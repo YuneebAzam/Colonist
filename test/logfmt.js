@@ -29,4 +29,7 @@ step('roll lines get a die icon; barbarian and robber lines are tagged');
 
 assert(LogFmt.format('Annie joined', P).indexOf('color:#E53935') === -1, 'name match is whole-word');
 step('player names match whole words only');
+const src = require('fs').readFileSync(require.resolve('../public/js/logfmt'), 'utf8');
+assert(!/\(\?<[!=]/.test(src), 'logfmt.js must not use regex lookbehind (Safari < 16.4 fails to parse the whole file)');
+step('no regex lookbehind (older Safari can still load the script)');
 console.log(`\nlogfmt: ${ok} checks passed`);

@@ -152,7 +152,11 @@
   .match-header { top: 8px; left: 8px; height: 40px; padding-left: 12px; }
   .match-header strong { font-size: 15px; }
   .hud-screen .icon-btn { width: 30px; height: 30px; }
-  .hud-screen .zoom-controls { top: 8px; right: 8px; height: 40px; }
+  /* The zoom pill stands vertically on the right edge, below the top strips, so the match header
+     (which grows with host-only buttons and long room codes) keeps the full top row. */
+  .hud-screen .zoom-controls { top: 172px; right: 8px; height: auto; flex-direction: column; padding: 4px 0; width: 40px; }
+  .hud-screen[data-mode="base"] .zoom-controls { top: 124px; }
+  .match-header { max-width: calc(100vw - 16px); }
   .hud-screen .zoom-controls button { width: 30px; height: 30px; }
 
   .roster {

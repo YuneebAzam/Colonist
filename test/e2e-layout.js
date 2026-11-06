@@ -91,6 +91,34 @@ const overlap = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h 
   await waitFor(async () => (await layoutFacts(phone)).rects['#logChat'] === false);
   ok(`phone (${MODE}): strip roster, collapsed chat drawer opens/closes, board centre clear, no h-scroll`);
 
+  // ---- phone host: host-only buttons + an 8-character code must not slide under the zoom pill
+  for (const width of [360, 375]) {
+    const ph = await (await browser.newContext({ viewport: { width, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 })).newPage(); watch(ph);
+    await ph.goto(url);
+    await ph.fill('#hostName', 'Hal'); await ph.fill('#hostCode', `LONGCD${width % 100}`);
+    await ph.click('#hostBtn');
+    await waitFor(() => ph.evaluate(() => UI.state && UI.state.phase === 'lobby'));
+    const c2 = await ph.evaluate(() => Net.code);
+    const extra = [];
+    for (const n of ['A1', 'B2']) { const w2 = new WebSocket(`ws://localhost:${port}`); await new Promise(r => w2.on('open', r)); w2.send(JSON.stringify({ type: 'join', name: n, code: c2 })); extra.push(w2); }
+    await waitFor(() => ph.evaluate(() => UI.state.players.length === 3));
+    await ph.evaluate(() => Net.send('start_game'));
+    await waitFor(() => ph.evaluate(() => UI.state.phase === 'setup_1'));
+    await sleep(300);
+    const hits = await ph.evaluate(() => ['#pauseBtn', '#resetBtn', '#copyLink', '#rulesBtn2', '#chatToggle', '#zoomIn', '#zoomOut', '#zoomFit'].map(sel => {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return [sel, hit && (hit.closest(sel) ? 'ok' : (hit.id || hit.className))];
+    }));
+    for (const [sel, hit] of hits) assert.strictEqual(hit, 'ok', `phone host ${width}px: ${sel} covered by ${hit}`);
+    const sw = await ph.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    assert(sw, `phone host ${width}px: horizontal scroll`);
+    await ph.screenshot({ path: path.join(OUT, `layout-${MODE}-phone-host-${width}.png`) });
+    for (const w2 of extra) w2.close();
+    await ph.context().close();
+  }
+  ok('phone host at 360/375px with an 8-character code: every header and zoom button is tappable');
+
   // ---- content (Task 8 extends this block)
   const contentFile = path.join(__dirname, 'e2e-layout-content.js');
   if (fs.existsSync(contentFile)) await require(contentFile)({ host, phone, MODE, assert, ok, waitFor, sleep, OUT });

@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 3005;
 const ROOM_IDLE_MS = 30 * 60 * 1000; // empty rooms survive 30 min so players can rejoin
 const LOBBY_GRACE_MS = 30 * 1000;  // a reload in the lobby keeps your seat this long
 const TIMER_SCALE = Number(process.env.CATAN_TIMER_SCALE || 1); // tests only: speeds the turn timer up
+const RESUME_GRACE_MS = 5000; // after a resume, a nearly-expired turn still gets this long
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
@@ -250,7 +251,8 @@ function handle(ws, msg) {
         room.game.pushLog(`${room.game.getPlayer(pid).name} paused the game`);
       } else {
         if (!room.paused) return;
-        room.resumeMs = room.paused.remainingMs;
+        const left = room.paused.remainingMs;
+        room.resumeMs = left == null ? null : Math.max(left, RESUME_GRACE_MS * TIMER_SCALE);
         room.paused = null;
         room.timer = null;
         room.game.pushLog(`${room.game.getPlayer(pid).name} resumed the game`);
